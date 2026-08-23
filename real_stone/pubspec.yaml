@@ -62,6 +62,7 @@ flutter:
     - assets/images/
     - assets/sprites/
     - assets/frames/
+    - assets/frames/effects/
     - assets/frames/stage_1/
     - assets/frames/stage_2/
     - assets/frames/stage_3/

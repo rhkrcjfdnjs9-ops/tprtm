@@ -2,7 +2,11 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'combat_motion.dart';
 
 void main() => runApp(const RealStoneApp());
 
@@ -26,6 +30,88 @@ class RealStoneApp extends StatelessWidget {
   );
 }
 
+class _SlashTrailPainter extends CustomPainter {
+  const _SlashTrailPainter({
+    required this.progress,
+    required this.variant,
+    required this.critical,
+    required this.awakened,
+  });
+
+  final double progress;
+  final int variant;
+  final bool critical;
+  final bool awakened;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final fade = (1 - progress).clamp(0.0, 1.0);
+    final cyan = awakened ? const Color(0xFFFFDF77) : const Color(0xFF8DEBFF);
+    final color = critical ? const Color(0xFFFFD36A) : cyan;
+    final startY = variant == 1 ? size.height * 0.18 : size.height * 0.78;
+    final endY = variant == 2 ? size.height * 0.72 : size.height * 0.28;
+    final controlY = variant == 0 ? -size.height * 0.08 : size.height * 0.5;
+    final path = Path()
+      ..moveTo(0, startY)
+      ..quadraticBezierTo(
+        size.width * (0.42 + progress * 0.18),
+        controlY,
+        size.width,
+        endY,
+      );
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color.withValues(alpha: 0.32 * fade)
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeWidth = critical ? 18 : 12
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+    );
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.92 * fade)
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeWidth = critical ? 5 : 3,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _SlashTrailPainter oldDelegate) =>
+      oldDelegate.progress != progress ||
+      oldDelegate.variant != variant ||
+      oldDelegate.critical != critical ||
+      oldDelegate.awakened != awakened;
+}
+
+class _RunDustPainter extends CustomPainter {
+  const _RunDustPainter({required this.progress});
+
+  final double progress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final dust = Paint()
+      ..color = const Color(0xFFB8C1C5).withValues(alpha: 0.5);
+    for (var index = 0; index < 3; index++) {
+      final phase = (progress + index * 0.19) % 1;
+      final x = size.width * (0.78 - phase * 0.72);
+      final y = size.height * (0.72 + sin(index * 2.1) * 0.12);
+      canvas.drawCircle(
+        Offset(x, y),
+        3 + phase * 7,
+        dust..color = dust.color.withValues(alpha: (1 - phase) * 0.52),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _RunDustPainter oldDelegate) =>
+      oldDelegate.progress != progress;
+}
+
 class GamePage extends StatefulWidget {
   const GamePage({super.key});
 
@@ -36,7 +122,7 @@ class GamePage extends StatefulWidget {
 enum BattlePhase { idle, approach, attack, hit, counter, retreat, defeated }
 
 class _GamePageState extends State<GamePage>
-    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
+    with WidgetsBindingObserver, TickerProviderStateMixin {
   int level = 1;
   int exp = 0;
   int crystals = 30;
@@ -51,22 +137,38 @@ class _GamePageState extends State<GamePage>
   bool fullyReleased = false;
   bool trueAwakened = false;
   bool loaded = false;
+  bool walkFramesPrecached = false;
   bool monsterHit = false;
+  bool heroHit = false;
+  bool impactFlash = false;
+  bool slashVisible = false;
+  bool criticalHit = false;
+  bool impactBurstVisible = false;
   bool screenShake = false;
   bool hitStop = false;
   bool battleBusy = false;
   bool enemyVisible = true;
+  bool heroVisible = true;
+  bool traveling = false;
   double heroPosition = 32;
   double monsterPosition = 32;
   BattlePhase battlePhase = BattlePhase.idle;
   int lastDamage = 0;
-  int spriteFrame = 0;
+  int heroSpriteFrame = 0;
+  int monsterSpriteFrame = 0;
+  int animationTick = 0;
+  int attackVariant = 0;
+  int impactSerial = 0;
+  int hitEffectFrame = 0;
   int heroAnimation = 0;
   int monsterAnimation = 0;
   String battleText = '자동 전투 준비 중';
   Timer? battleTimer;
   Timer? saveTimer;
-  Timer? frameTimer;
+  late final Ticker frameTicker;
+  Duration previousFrameTick = Duration.zero;
+  double heroFrameElapsedMs = 0;
+  double monsterFrameElapsedMs = 0;
   late final AnimationController motionController;
 
   int get expNeeded => 40 + level * 20;
@@ -135,8 +237,55 @@ class _GamePageState extends State<GamePage>
   void initState() {
     super.initState();
     motionController = AnimationController(vsync: this);
+    frameTicker = createTicker(_onFrameTick)..start();
     WidgetsBinding.instance.addObserver(this);
     _load();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (walkFramesPrecached) return;
+    walkFramesPrecached = true;
+    const actionCounts = {
+      'idle': 6,
+      'walk': 8,
+      'attack': 8,
+      'hit': 5,
+      'death': 6,
+    };
+    for (var stage = 1; stage <= 6; stage++) {
+      for (final action in actionCounts.entries) {
+        for (var frame = 0; frame < action.value; frame++) {
+          precacheImage(
+            AssetImage(
+              'assets/frames/stage_$stage/grania_${action.key}_$frame.png',
+            ),
+            context,
+          );
+        }
+      }
+    }
+    for (var frame = 0; frame < 8; frame++) {
+      precacheImage(
+        AssetImage('assets/frames/stage_6/grania_idle_v2_$frame.png'),
+        context,
+      );
+      precacheImage(
+        AssetImage('assets/frames/effects/hit_effect_$frame.png'),
+        context,
+      );
+    }
+    for (var frame = 0; frame < 4; frame++) {
+      precacheImage(
+        AssetImage('assets/frames/stage_6/grania_attack_transition_$frame.png'),
+        context,
+      );
+      precacheImage(
+        AssetImage('assets/frames/golem_attack_transition_$frame.png'),
+        context,
+      );
+    }
   }
 
   Future<void> _load() async {
@@ -176,10 +325,45 @@ class _GamePageState extends State<GamePage>
       );
     }
     _scheduleBattle(const Duration(milliseconds: 700));
-    frameTimer = Timer.periodic(const Duration(milliseconds: 120), (_) {
-      if (mounted && !hitStop) setState(() => spriteFrame++);
-    });
     saveTimer = Timer.periodic(const Duration(seconds: 10), (_) => _save());
+  }
+
+  double _frameDurationMs(int animation, {required bool hero}) {
+    const heroDurations = [125.0, 76.0, double.infinity, 82.0, 105.0];
+    const monsterDurations = [140.0, 92.0, double.infinity, 88.0, 110.0];
+    return (hero ? heroDurations : monsterDurations)[animation];
+  }
+
+  void _onFrameTick(Duration elapsed) {
+    if (!mounted) return;
+    if (previousFrameTick == Duration.zero) {
+      previousFrameTick = elapsed;
+      return;
+    }
+    final deltaMs =
+        (elapsed - previousFrameTick).inMicroseconds /
+        Duration.microsecondsPerMillisecond;
+    previousFrameTick = elapsed;
+    if (hitStop) return;
+
+    heroFrameElapsedMs += deltaMs;
+    monsterFrameElapsedMs += deltaMs;
+    final heroDuration = _frameDurationMs(heroAnimation, hero: true);
+    final monsterDuration = _frameDurationMs(monsterAnimation, hero: false);
+    var changed = false;
+    while (heroFrameElapsedMs >= heroDuration) {
+      heroFrameElapsedMs -= heroDuration;
+      heroSpriteFrame++;
+      changed = true;
+    }
+    while (monsterFrameElapsedMs >= monsterDuration) {
+      monsterFrameElapsedMs -= monsterDuration;
+      monsterSpriteFrame++;
+      changed = true;
+    }
+    if (changed) {
+      setState(() => animationTick++);
+    }
   }
 
   void _scheduleBattle([Duration? delay]) {
@@ -198,7 +382,11 @@ class _GamePageState extends State<GamePage>
       battlePhase = phase;
       heroAnimation = hero;
       monsterAnimation = monster;
-      spriteFrame = 0;
+      heroSpriteFrame = 0;
+      monsterSpriteFrame = 0;
+      animationTick = 0;
+      heroFrameElapsedMs = 0;
+      monsterFrameElapsedMs = 0;
     });
   }
 
@@ -217,9 +405,9 @@ class _GamePageState extends State<GamePage>
       setState(() {
         final position = start + (target - start) * value;
         if (hero) {
-          heroPosition = position.roundToDouble();
+          heroPosition = position;
         } else {
-          monsterPosition = position.roundToDouble();
+          monsterPosition = position;
         }
       });
     }
@@ -227,6 +415,51 @@ class _GamePageState extends State<GamePage>
     motionController.addListener(update);
     await motionController.forward();
     motionController.removeListener(update);
+  }
+
+  Future<void> _showActionFrame({
+    required bool hero,
+    required int frame,
+    required int milliseconds,
+  }) async {
+    if (!mounted) return;
+    setState(() {
+      if (hero) {
+        heroSpriteFrame = frame;
+      } else {
+        monsterSpriteFrame = frame;
+      }
+    });
+    await Future<void>.delayed(Duration(milliseconds: milliseconds));
+  }
+
+  Future<void> _playMotion(
+    List<CombatFrameCue> motion, {
+    required bool hero,
+  }) async {
+    for (final cue in motion) {
+      await _showActionFrame(
+        hero: hero,
+        frame: cue.frame,
+        milliseconds: cue.milliseconds,
+      );
+      if (!mounted) return;
+    }
+  }
+
+  Future<void> _playHitEffect() async {
+    if (!mounted) return;
+    setState(() {
+      impactBurstVisible = true;
+      hitEffectFrame = 0;
+    });
+    for (var frame = 1; frame < 8; frame++) {
+      await Future<void>.delayed(const Duration(milliseconds: 38));
+      if (!mounted) return;
+      setState(() => hitEffectFrame = frame);
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+    if (mounted) setState(() => impactBurstVisible = false);
   }
 
   Future<void> _save() async {
@@ -263,23 +496,57 @@ class _GamePageState extends State<GamePage>
     if (!mounted) return;
     _setCombatState(phase: BattlePhase.attack, hero: 2, monster: 0);
     setState(() => battleText = '검에 힘을 모은다…');
-    await Future<void>.delayed(const Duration(milliseconds: 330));
+    attackVariant = Random().nextInt(3);
+    criticalHit = Random().nextInt(100) < 18;
+    await _playMotion(CombatMotions.heroLeadIn, hero: true);
+    await _playMotion(CombatMotions.heroWindup, hero: true);
     if (!mounted) return;
+    final dealtDamage = criticalHit ? (attack * 1.65).round() : attack;
     setState(() {
       monsterHit = true;
+      impactFlash = true;
+      impactBurstVisible = true;
+      impactSerial++;
+      slashVisible = true;
       monsterAnimation = 3;
+      monsterSpriteFrame = 0;
       hitStop = true;
       screenShake = true;
-      lastDamage = attack;
-      enemyHp -= attack;
+      lastDamage = dealtDamage;
+      enemyHp -= dealtDamage;
+      if (criticalHit) battleText = 'CRITICAL! $dealtDamage';
       battleText = '그라니아가 $attack 피해를 입혔다!';
     });
-    await Future<void>.delayed(const Duration(milliseconds: 65));
+    if (criticalHit && mounted) {
+      setState(() => battleText = 'CRITICAL! $dealtDamage');
+    }
+    unawaited(_playHitEffect());
+    if (criticalHit) {
+      HapticFeedback.heavyImpact();
+    } else {
+      HapticFeedback.mediumImpact();
+    }
+    SystemSound.play(SystemSoundType.click);
+    await Future<void>.delayed(const Duration(milliseconds: 72));
     if (!mounted) return;
     setState(() {
       hitStop = false;
       screenShake = false;
+      impactFlash = false;
     });
+
+    final firstRecovery = CombatMotions.heroRecovery.first;
+    await _showActionFrame(
+      hero: true,
+      frame: firstRecovery.frame,
+      milliseconds: firstRecovery.milliseconds,
+    );
+    if (mounted) {
+      setState(() {
+        slashVisible = false;
+      });
+    }
+    await _playMotion(CombatMotions.heroRecovery.sublist(1), hero: true);
 
     if (enemyHp <= 0) {
       _setCombatState(phase: BattlePhase.defeated, hero: 0, monster: 4);
@@ -302,38 +569,41 @@ class _GamePageState extends State<GamePage>
         if (dungeonStage < 10) dungeonStage++;
         _checkLevelUp();
         enemyVisible = false;
-        monsterPosition = -120;
         heroAnimation = 1;
+        heroSpriteFrame = 0;
+        traveling = true;
         battleText = '승리! 다음 적을 향해 이동 중…';
       });
       await _moveActor(
         hero: true,
-        target: 104,
-        duration: const Duration(milliseconds: 480),
-        curve: Curves.easeInOut,
+        target: 380,
+        duration: const Duration(milliseconds: 760),
+        curve: Curves.easeInCubic,
       );
       if (!mounted) return;
       setState(() {
+        heroVisible = false;
+        heroPosition = -210;
         enemyHp = maxEnemyHp.toDouble();
         enemyVisible = true;
-        monsterAnimation = 1;
+        monsterPosition = 32;
+        monsterAnimation = 0;
+        monsterSpriteFrame = 0;
         battleText = clearedStage == 10
             ? '광산 보스 처치! 해방석 1개 획득'
             : '새로운 광석 골렘 등장';
       });
-      await _moveActor(
-        hero: false,
-        target: 32,
-        duration: const Duration(milliseconds: 460),
-        curve: Curves.easeOutCubic,
-      );
+      await Future<void>.delayed(const Duration(milliseconds: 140));
       if (!mounted) return;
+      setState(() => heroVisible = true);
       await _moveActor(
         hero: true,
         target: 32,
-        duration: const Duration(milliseconds: 380),
-        curve: Curves.easeInOutCubic,
+        duration: const Duration(milliseconds: 720),
+        curve: Curves.easeOutCubic,
       );
+      if (!mounted) return;
+      setState(() => traveling = false);
       _setCombatState(phase: BattlePhase.idle, hero: 0, monster: 0);
       _finishBattleCycle();
       return;
@@ -352,6 +622,7 @@ class _GamePageState extends State<GamePage>
     if (!mounted) return;
     _setCombatState(phase: BattlePhase.counter, hero: 0, monster: 1);
     setState(() => battleText = '광석 골렘이 묵직하게 다가온다');
+    await Future<void>.delayed(const Duration(milliseconds: 230));
     await _moveActor(
       hero: false,
       target: 72,
@@ -361,21 +632,33 @@ class _GamePageState extends State<GamePage>
     if (!mounted) return;
     _setCombatState(phase: BattlePhase.counter, hero: 0, monster: 2);
     setState(() => battleText = '광석 골렘의 반격!');
-    await Future<void>.delayed(const Duration(milliseconds: 330));
+    await _playMotion(CombatMotions.golemLeadIn, hero: false);
+    await _playMotion(CombatMotions.golemWindup, hero: false);
     if (!mounted) return;
+    HapticFeedback.mediumImpact();
+    SystemSound.play(SystemSoundType.click);
+    unawaited(_playHitEffect());
     setState(() {
       heroHp -= enemyAttack;
       heroAnimation = 3;
+      heroSpriteFrame = 0;
+      heroHit = true;
+      impactFlash = true;
+      impactBurstVisible = true;
+      impactSerial++;
       hitStop = true;
       screenShake = true;
       battleText = '그라니아가 $enemyAttack 피해를 받았다';
     });
-    await Future<void>.delayed(const Duration(milliseconds: 65));
+    await Future<void>.delayed(const Duration(milliseconds: 72));
     if (!mounted) return;
     setState(() {
       hitStop = false;
       screenShake = false;
+      impactFlash = false;
     });
+    if (mounted) setState(() => monsterAnimation = 2);
+    await _playMotion(CombatMotions.golemRecovery, hero: false);
     if (heroHp <= 0) {
       _setCombatState(phase: BattlePhase.defeated, hero: 4, monster: 0);
       setState(() => battleText = '그라니아가 쓰러졌다…');
@@ -390,6 +673,7 @@ class _GamePageState extends State<GamePage>
       await Future<void>.delayed(const Duration(milliseconds: 260));
     }
     if (!mounted) return;
+    setState(() => heroHit = false);
     _setCombatState(phase: BattlePhase.retreat, hero: 0, monster: 1);
     await _moveActor(
       hero: false,
@@ -479,7 +763,7 @@ class _GamePageState extends State<GamePage>
     WidgetsBinding.instance.removeObserver(this);
     battleTimer?.cancel();
     saveTimer?.cancel();
-    frameTimer?.cancel();
+    frameTicker.dispose();
     motionController.dispose();
     _save();
     super.dispose();
@@ -535,8 +819,23 @@ class _GamePageState extends State<GamePage>
 
   Widget _battlefield() => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 16),
-    child: Transform.translate(
-      offset: screenShake ? const Offset(5, -3) : Offset.zero,
+    child: TweenAnimationBuilder<double>(
+      key: ValueKey(impactSerial),
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 190),
+      builder: (context, progress, child) {
+        final strength = impactSerial == 0
+            ? 0.0
+            : (criticalHit ? 9.0 : 5.5) * (1 - progress);
+        final direction = battlePhase == BattlePhase.counter ? -1.0 : 1.0;
+        return Transform.translate(
+          offset: Offset(
+            sin(progress * pi * 6) * strength * direction,
+            cos(progress * pi * 5) * strength * 0.32,
+          ),
+          child: child,
+        );
+      },
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
         child: Stack(
@@ -562,7 +861,7 @@ class _GamePageState extends State<GamePage>
                 ),
               ),
             ),
-            if (evolutionStage >= 4)
+            if (evolutionStage >= 4 && heroVisible)
               Positioned(
                 left: heroPosition + 35,
                 bottom: 105,
@@ -599,18 +898,35 @@ class _GamePageState extends State<GamePage>
                   ),
                 ),
               ),
-            Positioned(
-              left: heroPosition + 51,
-              bottom: 103,
-              width: 88,
-              height: 17,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.38),
-                  borderRadius: BorderRadius.circular(50),
+            if (heroVisible)
+              Positioned(
+                left: heroPosition + 51,
+                bottom: 103,
+                width: 88,
+                height: 17,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.38),
+                    borderRadius: BorderRadius.circular(50),
+                  ),
                 ),
               ),
-            ),
+            if (traveling &&
+                heroVisible &&
+                (heroSpriteFrame % 8 == 1 || heroSpriteFrame % 8 == 5))
+              Positioned(
+                left: heroPosition - 48,
+                bottom: 96,
+                width: 145,
+                height: 78,
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    painter: _RunDustPainter(
+                      progress: (animationTick % 10) / 10,
+                    ),
+                  ),
+                ),
+              ),
             Positioned(
               right: monsterPosition + 39,
               bottom: 107,
@@ -623,135 +939,136 @@ class _GamePageState extends State<GamePage>
                 ),
               ),
             ),
-            Positioned(
-              left: heroPosition,
-              bottom: 92,
-              width: 190,
-              height: 190,
-              child: RepaintBoundary(child: _actorSprite(hero: true)),
-            ),
+            if (heroVisible)
+              Positioned(
+                // Extra horizontal room keeps wide sword trails away from the
+                // actor viewport edge without moving Grania's foot anchor.
+                left: heroPosition - 15 + (heroHit ? -8 : 0),
+                bottom: 92,
+                width: 220,
+                height: 190,
+                child: AnimatedSlide(
+                  offset: Offset(
+                    heroHit
+                        ? -0.055
+                        : heroAnimation == 2
+                        ? (heroSpriteFrame <= 3
+                              ? heroSpriteFrame * 0.015
+                              : heroSpriteFrame == 6
+                              ? 0.02
+                              : 0)
+                        : 0,
+                    traveling ? sin(animationTick * pi / 2) * 0.012 : 0,
+                  ),
+                  duration: const Duration(milliseconds: 105),
+                  curve: Curves.easeOutCubic,
+                  child: RepaintBoundary(child: _actorSprite(hero: true)),
+                ),
+              ),
             Positioned(
               right: monsterPosition + (monsterHit ? -10 : 0),
-              bottom: 98,
+              bottom:
+                  98 -
+                  (monsterAnimation == 4
+                      ? min(10.0, monsterSpriteFrame * 0.9)
+                      : 0),
               width: 170,
               height: 170,
               child: AnimatedOpacity(
-                opacity: enemyVisible ? 1 : 0,
-                duration: const Duration(milliseconds: 180),
-                child: RepaintBoundary(child: _actorSprite(hero: false)),
+                opacity: enemyVisible
+                    ? (monsterAnimation == 4
+                          ? max(0.18, 1 - monsterSpriteFrame / 13)
+                          : 1)
+                    : 0,
+                duration: const Duration(milliseconds: 70),
+                child: AnimatedSlide(
+                  offset: Offset(
+                    monsterHit
+                        ? 0.075
+                        : monsterAnimation == 2
+                        ? (monsterSpriteFrame < 4 ? -0.025 : 0.035)
+                        : 0,
+                    0,
+                  ),
+                  duration: const Duration(milliseconds: 115),
+                  curve: Curves.easeOutCubic,
+                  child: RepaintBoundary(child: _actorSprite(hero: false)),
+                ),
               ),
             ),
+            if (slashVisible)
+              Positioned(
+                left: heroPosition + 105,
+                right: monsterPosition + 70,
+                bottom: 135,
+                height: 115,
+                child: IgnorePointer(
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0, end: 1),
+                    duration: const Duration(milliseconds: 165),
+                    builder: (context, progress, _) => CustomPaint(
+                      painter: _SlashTrailPainter(
+                        progress: progress,
+                        variant: attackVariant,
+                        critical: criticalHit,
+                        awakened: evolutionStage >= 6,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            if (impactBurstVisible)
+              Positioned(
+                left: battlePhase == BattlePhase.counter
+                    ? heroPosition + 42
+                    : null,
+                right: battlePhase == BattlePhase.counter
+                    ? null
+                    : monsterPosition + 18,
+                bottom: 116,
+                width: 180,
+                height: 180,
+                child: IgnorePointer(
+                  child: Image.asset(
+                    'assets/frames/effects/hit_effect_$hitEffectFrame.png',
+                    key: ValueKey('hit-effect-$impactSerial-$hitEffectFrame'),
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.none,
+                    gaplessPlayback: true,
+                  ),
+                ),
+              ),
             if (monsterHit)
               Positioned(
                 right: 80,
                 bottom: 245,
-                child: Text(
-                  '-$lastDamage',
-                  style: const TextStyle(
-                    color: Color(0xFFFFD36A),
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            if (monsterHit) ...[
-              const Positioned(
-                right: 45,
-                bottom: 172,
-                child: Icon(Icons.circle, size: 8, color: Color(0xFFB5A38C)),
-              ),
-              const Positioned(
-                right: 66,
-                bottom: 195,
-                child: Icon(Icons.circle, size: 12, color: Color(0xFF806E5D)),
-              ),
-              const Positioned(
-                right: 95,
-                bottom: 162,
-                child: Icon(Icons.circle, size: 6, color: Color(0xFFD0BDA2)),
-              ),
-            ],
-            if (battlePhase == BattlePhase.attack)
-              Positioned(
-                right: monsterPosition + 82,
-                bottom: 165,
-                child: Transform.rotate(
-                  angle: -0.55,
-                  child: const Icon(
-                    Icons.bolt,
-                    size: 64,
-                    color: Color(0xFFE8FAFF),
-                    shadows: [Shadow(color: Color(0xFF45CDE8), blurRadius: 12)],
-                  ),
-                ),
-              ),
-            if (monsterHit)
-              Positioned(
-                right: monsterPosition + 76,
-                bottom: 174,
-                child: const Icon(
-                  Icons.auto_awesome,
-                  size: 48,
-                  color: Color(0xFF8DEBFF),
-                  shadows: [Shadow(color: Colors.white, blurRadius: 14)],
-                ),
-              ),
-            if (battlePhase == BattlePhase.counter && monsterAnimation == 2)
-              Positioned(
-                left: heroPosition + 75,
-                bottom: 158,
-                child: Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: const Color(0xAAFF8A35),
-                      width: 5,
-                    ),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x66FF6A20),
-                        blurRadius: 18,
-                        spreadRadius: 5,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            if (battlePhase == BattlePhase.counter && hitStop)
-              Positioned(
-                left: heroPosition + 92,
-                bottom: 175,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Container(
-                      width: 54,
-                      height: 54,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: const Color(0xFFFFB04A),
-                          width: 5,
-                        ),
+                child: TweenAnimationBuilder<double>(
+                  key: ValueKey('damage-$impactSerial'),
+                  tween: Tween(begin: 0, end: 1),
+                  duration: const Duration(milliseconds: 430),
+                  builder: (context, progress, child) => Opacity(
+                    opacity: (1 - progress * 0.82).clamp(0.0, 1.0),
+                    child: Transform.translate(
+                      offset: Offset(0, -28 * progress),
+                      child: Transform.scale(
+                        scale: 1 + 0.3 * (1 - progress),
+                        child: child,
                       ),
                     ),
-                    const Icon(Icons.star, size: 34, color: Color(0xFFFFE3A0)),
-                  ],
-                ),
-              ),
-            if (battlePhase == BattlePhase.counter && hitStop)
-              Positioned(
-                left: heroPosition + 48,
-                bottom: 120,
-                width: 150,
-                height: 180,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(80),
-                    gradient: const RadialGradient(
-                      colors: [Color(0x77FF4E45), Colors.transparent],
+                  ),
+                  child: Text(
+                    criticalHit ? 'CRITICAL\n-$lastDamage' : '-$lastDamage',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: criticalHit
+                          ? const Color(0xFFFFE078)
+                          : const Color(0xFFFFD36A),
+                      fontSize: criticalHit ? 21 : 24,
+                      fontWeight: FontWeight.w900,
+                      height: 0.9,
+                      shadows: const [
+                        Shadow(color: Colors.black, blurRadius: 5),
+                      ],
                     ),
                   ),
                 ),
@@ -835,22 +1152,60 @@ class _GamePageState extends State<GamePage>
 
   Widget _actorSprite({required bool hero}) {
     final animation = hero ? heroAnimation : monsterAnimation;
+    final rawFrame = hero ? heroSpriteFrame : monsterSpriteFrame;
     const names = ['idle', 'walk', 'attack', 'hit', 'death'];
     const counts = [6, 8, 8, 5, 6];
+    final frameCount = hero && animation == 0 && evolutionStage == 6
+        ? 8
+        : counts[animation];
     var frame = animation == 4
-        ? min(spriteFrame, hero ? counts[animation] - 1 : 3)
-        : spriteFrame % counts[animation];
+        ? min(rawFrame, frameCount - 1)
+        : rawFrame % frameCount;
     if (!hero && animation == 2) {
       const safeAttackFrames = [0, 0, 1, 1, 2, 6, 7, 7];
-      frame = safeAttackFrames[spriteFrame % safeAttackFrames.length];
+      frame = safeAttackFrames[rawFrame % safeAttackFrames.length];
+    }
+    if (hero && animation == 2 && evolutionStage >= 4) {
+      // Frames 4-5 contain a detached/cropped left sword fragment in the
+      // source sheet. Bridge the swing with intact anticipation/recovery.
+      const safeHeroAttackFrames = [0, 1, 2, 3, 3, 6, 7, 7];
+      frame = safeHeroAttackFrames[rawFrame % safeHeroAttackFrames.length];
+    }
+    if (hero && animation == 2 && rawFrame >= 8) {
+      frame = rawFrame < 10 ? rawFrame - 8 : rawFrame - 4;
+    }
+    if (!hero && animation == 2 && rawFrame >= 8) {
+      frame = rawFrame < 10 ? rawFrame - 8 : rawFrame - 4;
+    }
+    if (!hero && animation == 4) {
+      // Later source frames crop the golem's back. Keep the intact body and
+      // finish the death with a whole-sprite sink/fade instead.
+      frame = rawFrame < 2 ? 0 : 1;
     }
     final prefix = hero ? 'grania' : 'golem';
     final frameRoot = hero
         ? 'assets/frames/stage_$evolutionStage'
         : 'assets/frames';
+    var assetPath = '$frameRoot/${prefix}_${names[animation]}_$frame.png';
+    if (hero && animation == 0 && evolutionStage == 6) {
+      assetPath = '$frameRoot/grania_idle_v2_$frame.png';
+    }
+    if (hero && animation == 2 && evolutionStage == 6 && rawFrame <= 2) {
+      assetPath = '$frameRoot/grania_attack_v2_$rawFrame.png';
+    }
+    if (hero && animation == 2 && evolutionStage == 6 && rawFrame >= 8) {
+      assetPath = '$frameRoot/grania_attack_transition_${rawFrame - 8}.png';
+    }
+    if (!hero && animation == 2) {
+      final generatedFrame = rawFrame >= 4 ? 6 : rawFrame;
+      assetPath = '$frameRoot/golem_attack_v2_$generatedFrame.png';
+    }
+    if (!hero && animation == 2 && rawFrame >= 8) {
+      assetPath = '$frameRoot/golem_attack_transition_${rawFrame - 8}.png';
+    }
     return Image.asset(
-      '$frameRoot/${prefix}_${names[animation]}_$frame.png',
-      key: ValueKey('$prefix-$evolutionStage-$animation-$frame'),
+      assetPath,
+      key: ValueKey('$prefix-$evolutionStage-$animation'),
       fit: BoxFit.contain,
       filterQuality: FilterQuality.none,
       gaplessPlayback: true,
