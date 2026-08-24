@@ -69,6 +69,8 @@ flutter:
     - assets/frames/stage_4/
     - assets/frames/stage_5/
     - assets/frames/stage_6/
+    - assets/frames/stage_5_right_hand/
+    - assets/frames/stage_6_right_hand/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

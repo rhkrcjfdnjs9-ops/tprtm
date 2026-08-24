@@ -173,9 +173,8 @@ class _GamePageState extends State<GamePage>
 
   int get expNeeded => 40 + level * 20;
   int get unlockedEvolutionStage {
-    if (trueAwakened) return 6;
-    if (fullyReleased) return 5;
-    if (halfReleased) return 4;
+    if (trueAwakened) return 5;
+    if (fullyReleased) return 4;
     if (level >= 10) return 3;
     if (level >= 5) return 2;
     return 1;
@@ -184,27 +183,23 @@ class _GamePageState extends State<GamePage>
   int get evolutionStage =>
       min(unlockedEvolutionStage, max(1, selectedEvolutionStage));
 
-  String get evolutionName => const [
-    '원석 상태',
-    '형상 발현',
-    '균열 발생',
-    '반신 해방',
-    '완전 해방',
-    '진정한 각성',
-  ][evolutionStage - 1];
-  String get imagePath => 'assets/images/grania_stage_$evolutionStage.png';
+  int _assetStageFor(int stage) => stage >= 4 ? stage + 1 : stage;
+  int get assetEvolutionStage => _assetStageFor(evolutionStage);
+
+  String get evolutionName =>
+      const ['원석 상태', '형상 발현', '균열 발생', '완전 해방', '진정한 각성'][evolutionStage - 1];
+  String get imagePath => 'assets/images/grania_stage_$assetEvolutionStage.png';
   double get attackBonus =>
-      const [0.0, 0.10, 0.25, 0.40, 0.65, 1.00][unlockedEvolutionStage - 1];
+      const [0.0, 0.12, 0.30, 0.70, 1.10][unlockedEvolutionStage - 1];
   int get attack => ((7 + level * 4) * (1 + attackBonus)).round();
   int get maxEnemyHp => 70 + dungeonStage * 30;
   int get maxHeroHp => 90 + level * 12;
   int get enemyAttack => 4 + dungeonStage * 2;
   bool get canEvolve {
-    if (unlockedEvolutionStage == 3) return level >= 20 && bossDefeated;
-    if (unlockedEvolutionStage == 4) {
-      return level >= 35 && liberationStones >= 3;
+    if (unlockedEvolutionStage == 3) {
+      return level >= 35 && bossDefeated && liberationStones >= 3;
     }
-    if (unlockedEvolutionStage == 5) return level >= 50 && bond >= 100;
+    if (unlockedEvolutionStage == 4) return level >= 50 && bond >= 100;
     return false;
   }
 
@@ -212,24 +207,20 @@ class _GamePageState extends State<GamePage>
     if (unlockedEvolutionStage == 1) return '다음 단계: 형상 발현 · 레벨 5 필요';
     if (unlockedEvolutionStage == 2) return '다음 단계: 균열 발생 · 레벨 10 필요';
     if (unlockedEvolutionStage == 3) {
-      final levelState = level >= 20 ? '완료' : '$level/20';
+      final levelState = level >= 35 ? '완료' : '$level/35';
       final bossState = bossDefeated ? '완료' : '미완료';
-      return '다음 단계: 반신 해방 · 레벨 $levelState · 보스 $bossState';
+      return '다음 단계: 완전 해방 · 레벨 $levelState · 보스 $bossState · 해방석 $liberationStones/3';
     }
     if (unlockedEvolutionStage == 4) {
-      return '다음 단계: 완전 해방 · 레벨 $level/35 · 해방석 $liberationStones/3';
-    }
-    if (unlockedEvolutionStage == 5) {
       return '다음 단계: 진정한 각성 · 레벨 $level/50 · 유대 $bond/100';
     }
-    return '최종 단계에 도달했습니다 · 태고의 수호자 그라니아';
+    return '각성 완료 · 검의 진명 해방과 전투 스타일 성장이 개방됩니다';
   }
 
   String get evolveButtonText {
     if (unlockedEvolutionStage <= 2) return '봉인 성장 중';
-    if (unlockedEvolutionStage == 3) return '반신 해방';
-    if (unlockedEvolutionStage == 4) return '완전 해방';
-    if (unlockedEvolutionStage == 5) return '진정한 각성';
+    if (unlockedEvolutionStage == 3) return '완전 해방';
+    if (unlockedEvolutionStage == 4) return '진정한 각성';
     return '최종 각성 완료';
   }
 
@@ -285,6 +276,19 @@ class _GamePageState extends State<GamePage>
         AssetImage('assets/frames/golem_attack_transition_$frame.png'),
         context,
       );
+    }
+    for (final stage in [5, 6]) {
+      for (final action in actionCounts.entries) {
+        for (var frame = 0; frame < action.value; frame++) {
+          precacheImage(
+            AssetImage(
+              'assets/frames/stage_${stage}_right_hand/'
+              'grania_${action.key}_$frame.png',
+            ),
+            context,
+          );
+        }
+      }
     }
   }
 
@@ -417,6 +421,30 @@ class _GamePageState extends State<GamePage>
     motionController.removeListener(update);
   }
 
+  Future<void> _moveActors({
+    required double heroTarget,
+    required double monsterTarget,
+    required Duration duration,
+    required Curve curve,
+  }) async {
+    final heroStart = heroPosition;
+    final monsterStart = monsterPosition;
+    motionController.duration = duration;
+    motionController.reset();
+    void update() {
+      if (!mounted) return;
+      final value = curve.transform(motionController.value);
+      setState(() {
+        heroPosition = heroStart + (heroTarget - heroStart) * value;
+        monsterPosition = monsterStart + (monsterTarget - monsterStart) * value;
+      });
+    }
+
+    motionController.addListener(update);
+    await motionController.forward();
+    motionController.removeListener(update);
+  }
+
   Future<void> _showActionFrame({
     required bool hero,
     required int frame,
@@ -489,17 +517,50 @@ class _GamePageState extends State<GamePage>
     setState(() => battleText = '그라니아가 발걸음을 맞춰 접근한다');
     await _moveActor(
       hero: true,
-      target: 78,
-      duration: const Duration(milliseconds: 420),
-      curve: Curves.easeInOutCubic,
+      target: 66,
+      duration: const Duration(milliseconds: 330),
+      curve: Curves.easeOutCubic,
     );
     if (!mounted) return;
     _setCombatState(phase: BattlePhase.attack, hero: 2, monster: 0);
     setState(() => battleText = '검에 힘을 모은다…');
     attackVariant = Random().nextInt(3);
     criticalHit = Random().nextInt(100) < 18;
-    await _playMotion(CombatMotions.heroLeadIn, hero: true);
-    await _playMotion(CombatMotions.heroWindup, hero: true);
+    await Future.wait([
+      _moveActor(
+        hero: true,
+        target: 78,
+        duration: const Duration(milliseconds: 145),
+        curve: Curves.easeOutCubic,
+      ),
+      _playMotion(CombatMotions.heroLeadIn, hero: true),
+    ]);
+    await _playMotion(
+      CombatMotions.heroWindup.sublist(0, CombatMotions.heroWindup.length - 1),
+      hero: true,
+    );
+    if (mounted) {
+      setState(() {
+        slashVisible = true;
+        monsterAnimation = 3;
+        monsterSpriteFrame = 0;
+      });
+    }
+    final contactFrame = CombatMotions.heroWindup.last;
+    final contactMotion = Future.wait([
+      _showActionFrame(
+        hero: true,
+        frame: contactFrame.frame,
+        milliseconds: contactFrame.milliseconds,
+      ),
+      _moveActor(
+        hero: true,
+        target: 84,
+        duration: const Duration(milliseconds: 64),
+        curve: Curves.easeInCubic,
+      ),
+    ]);
+    await Future<void>.delayed(const Duration(milliseconds: 18));
     if (!mounted) return;
     final dealtDamage = criticalHit ? (attack * 1.65).round() : attack;
     setState(() {
@@ -507,9 +568,7 @@ class _GamePageState extends State<GamePage>
       impactFlash = true;
       impactBurstVisible = true;
       impactSerial++;
-      slashVisible = true;
-      monsterAnimation = 3;
-      monsterSpriteFrame = 0;
+      monsterSpriteFrame = 1;
       hitStop = true;
       screenShake = true;
       lastDamage = dealtDamage;
@@ -517,6 +576,7 @@ class _GamePageState extends State<GamePage>
       if (criticalHit) battleText = 'CRITICAL! $dealtDamage';
       battleText = '그라니아가 $attack 피해를 입혔다!';
     });
+    await contactMotion;
     if (criticalHit && mounted) {
       setState(() => battleText = 'CRITICAL! $dealtDamage');
     }
@@ -536,11 +596,19 @@ class _GamePageState extends State<GamePage>
     });
 
     final firstRecovery = CombatMotions.heroRecovery.first;
-    await _showActionFrame(
-      hero: true,
-      frame: firstRecovery.frame,
-      milliseconds: firstRecovery.milliseconds,
-    );
+    await Future.wait([
+      _showActionFrame(
+        hero: true,
+        frame: firstRecovery.frame,
+        milliseconds: firstRecovery.milliseconds,
+      ),
+      _moveActor(
+        hero: true,
+        target: 78,
+        duration: Duration(milliseconds: firstRecovery.milliseconds),
+        curve: Curves.easeOutCubic,
+      ),
+    ]);
     if (mounted) {
       setState(() {
         slashVisible = false;
@@ -609,15 +677,21 @@ class _GamePageState extends State<GamePage>
       return;
     }
 
-    await Future<void>.delayed(const Duration(milliseconds: 220));
-    if (!mounted) return;
-    setState(() => monsterHit = false);
-    _setCombatState(phase: BattlePhase.retreat, hero: 1, monster: 0);
     await _moveActor(
       hero: true,
-      target: 32,
-      duration: const Duration(milliseconds: 340),
+      target: 68,
+      duration: const Duration(milliseconds: 135),
       curve: Curves.easeOutCubic,
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 95));
+    if (!mounted) return;
+    setState(() => monsterHit = false);
+    _setCombatState(phase: BattlePhase.retreat, hero: 1, monster: 1);
+    await _moveActors(
+      heroTarget: 32,
+      monsterTarget: 58,
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeInOutCubic,
     );
     if (!mounted) return;
     _setCombatState(phase: BattlePhase.counter, hero: 0, monster: 1);
@@ -626,14 +700,28 @@ class _GamePageState extends State<GamePage>
     await _moveActor(
       hero: false,
       target: 72,
-      duration: const Duration(milliseconds: 360),
-      curve: Curves.easeInOutCubic,
+      duration: const Duration(milliseconds: 150),
+      curve: Curves.easeOutCubic,
     );
     if (!mounted) return;
     _setCombatState(phase: BattlePhase.counter, hero: 0, monster: 2);
     setState(() => battleText = '광석 골렘의 반격!');
     await _playMotion(CombatMotions.golemLeadIn, hero: false);
-    await _playMotion(CombatMotions.golemWindup, hero: false);
+    if (mounted) {
+      setState(() {
+        heroAnimation = 2;
+        heroSpriteFrame = 0;
+      });
+    }
+    await Future.wait([
+      _playMotion(CombatMotions.golemWindup, hero: false),
+      _moveActor(
+        hero: true,
+        target: 27,
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOutCubic,
+      ),
+    ]);
     if (!mounted) return;
     HapticFeedback.mediumImpact();
     SystemSound.play(SystemSoundType.click);
@@ -641,7 +729,7 @@ class _GamePageState extends State<GamePage>
     setState(() {
       heroHp -= enemyAttack;
       heroAnimation = 3;
-      heroSpriteFrame = 0;
+      heroSpriteFrame = 1;
       heroHit = true;
       impactFlash = true;
       impactBurstVisible = true;
@@ -658,7 +746,15 @@ class _GamePageState extends State<GamePage>
       impactFlash = false;
     });
     if (mounted) setState(() => monsterAnimation = 2);
-    await _playMotion(CombatMotions.golemRecovery, hero: false);
+    await Future.wait([
+      _playMotion(CombatMotions.golemRecovery, hero: false),
+      _moveActor(
+        hero: true,
+        target: 32,
+        duration: const Duration(milliseconds: 270),
+        curve: Curves.easeOutBack,
+      ),
+    ]);
     if (heroHp <= 0) {
       _setCombatState(phase: BattlePhase.defeated, hero: 4, monster: 0);
       setState(() => battleText = '그라니아가 쓰러졌다…');
@@ -708,14 +804,12 @@ class _GamePageState extends State<GamePage>
     setState(() {
       if (unlockedEvolutionStage == 3) {
         halfReleased = true;
-        message = '상반신의 봉인이 풀렸습니다. 공격력 보너스가 40%로 상승합니다.';
-      } else if (unlockedEvolutionStage == 4) {
         liberationStones -= 3;
         fullyReleased = true;
-        message = '그라니아가 봉인 밖으로 걸어 나왔습니다. 공격력 보너스가 65%로 상승합니다.';
+        message = '그라니아가 완전히 해방되었습니다. 공격형 대검 전사로서 공격력 보너스가 70%로 상승합니다.';
       } else {
         trueAwakened = true;
-        message = '태고의 수호자로 각성했습니다. 공격력 보너스가 100%로 상승합니다.';
+        message = '검의 계승자로 각성했습니다. 공격력 보너스가 110%로 상승하고 각성 이후 성장이 개방됩니다.';
       }
       selectedEvolutionStage = unlockedEvolutionStage;
       battleText = '$evolutionName! 그라니아의 힘이 깨어났다.';
@@ -870,11 +964,11 @@ class _GamePageState extends State<GamePage>
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: evolutionStage >= 6
+                    border: evolutionStage >= 5
                         ? Border.all(color: const Color(0xAAFFE29A), width: 3)
                         : null,
                     gradient: RadialGradient(
-                      colors: evolutionStage >= 6
+                      colors: evolutionStage >= 5
                           ? const [
                               Color(0xAAFFF1AE),
                               Color(0x5545D9F2),
@@ -888,10 +982,10 @@ class _GamePageState extends State<GamePage>
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: evolutionStage >= 6
+                        color: evolutionStage >= 5
                             ? const Color(0x88FFD66B)
                             : const Color(0x6645D9F2),
-                        blurRadius: evolutionStage >= 6 ? 28 : 18,
+                        blurRadius: evolutionStage >= 5 ? 28 : 18,
                         spreadRadius: 3,
                       ),
                     ],
@@ -943,21 +1037,13 @@ class _GamePageState extends State<GamePage>
               Positioned(
                 // Extra horizontal room keeps wide sword trails away from the
                 // actor viewport edge without moving Grania's foot anchor.
-                left: heroPosition - 15 + (heroHit ? -8 : 0),
+                left: heroPosition - 45 + (heroHit ? -8 : 0),
                 bottom: 92,
-                width: 220,
-                height: 190,
+                width: 280,
+                height: 220,
                 child: AnimatedSlide(
                   offset: Offset(
-                    heroHit
-                        ? -0.055
-                        : heroAnimation == 2
-                        ? (heroSpriteFrame <= 3
-                              ? heroSpriteFrame * 0.015
-                              : heroSpriteFrame == 6
-                              ? 0.02
-                              : 0)
-                        : 0,
+                    heroHit ? -0.045 : 0,
                     traveling ? sin(animationTick * pi / 2) * 0.012 : 0,
                   ),
                   duration: const Duration(milliseconds: 105),
@@ -1011,7 +1097,7 @@ class _GamePageState extends State<GamePage>
                         progress: progress,
                         variant: attackVariant,
                         critical: criticalHit,
-                        awakened: evolutionStage >= 6,
+                        awakened: evolutionStage >= 5,
                       ),
                     ),
                   ),
@@ -1155,21 +1241,13 @@ class _GamePageState extends State<GamePage>
     final rawFrame = hero ? heroSpriteFrame : monsterSpriteFrame;
     const names = ['idle', 'walk', 'attack', 'hit', 'death'];
     const counts = [6, 8, 8, 5, 6];
-    final frameCount = hero && animation == 0 && evolutionStage == 6
-        ? 8
-        : counts[animation];
+    final frameCount = counts[animation];
     var frame = animation == 4
         ? min(rawFrame, frameCount - 1)
         : rawFrame % frameCount;
     if (!hero && animation == 2) {
       const safeAttackFrames = [0, 0, 1, 1, 2, 6, 7, 7];
       frame = safeAttackFrames[rawFrame % safeAttackFrames.length];
-    }
-    if (hero && animation == 2 && evolutionStage >= 4) {
-      // Frames 4-5 contain a detached/cropped left sword fragment in the
-      // source sheet. Bridge the swing with intact anticipation/recovery.
-      const safeHeroAttackFrames = [0, 1, 2, 3, 3, 6, 7, 7];
-      frame = safeHeroAttackFrames[rawFrame % safeHeroAttackFrames.length];
     }
     if (hero && animation == 2 && rawFrame >= 8) {
       frame = rawFrame < 10 ? rawFrame - 8 : rawFrame - 4;
@@ -1184,18 +1262,11 @@ class _GamePageState extends State<GamePage>
     }
     final prefix = hero ? 'grania' : 'golem';
     final frameRoot = hero
-        ? 'assets/frames/stage_$evolutionStage'
+        ? evolutionStage >= 4
+              ? 'assets/frames/stage_${assetEvolutionStage}_right_hand'
+              : 'assets/frames/stage_$assetEvolutionStage'
         : 'assets/frames';
     var assetPath = '$frameRoot/${prefix}_${names[animation]}_$frame.png';
-    if (hero && animation == 0 && evolutionStage == 6) {
-      assetPath = '$frameRoot/grania_idle_v2_$frame.png';
-    }
-    if (hero && animation == 2 && evolutionStage == 6 && rawFrame <= 2) {
-      assetPath = '$frameRoot/grania_attack_v2_$rawFrame.png';
-    }
-    if (hero && animation == 2 && evolutionStage == 6 && rawFrame >= 8) {
-      assetPath = '$frameRoot/grania_attack_transition_${rawFrame - 8}.png';
-    }
     if (!hero && animation == 2) {
       final generatedFrame = rawFrame >= 4 ? 6 : rawFrame;
       assetPath = '$frameRoot/golem_attack_v2_$generatedFrame.png';
@@ -1203,14 +1274,60 @@ class _GamePageState extends State<GamePage>
     if (!hero && animation == 2 && rawFrame >= 8) {
       assetPath = '$frameRoot/golem_attack_transition_${rawFrame - 8}.png';
     }
-    return Image.asset(
+    final sprite = Image.asset(
       assetPath,
       key: ValueKey('$prefix-$evolutionStage-$animation'),
-      fit: BoxFit.contain,
+      fit: hero && evolutionStage >= 4 ? BoxFit.fitHeight : BoxFit.contain,
       filterQuality: FilterQuality.none,
       gaplessPlayback: true,
       alignment: Alignment.bottomCenter,
     );
+    final scaleCorrection = hero
+        ? _heroScaleCorrection(animation: animation, frame: frame)
+        : 1.0;
+    if ((scaleCorrection - 1).abs() > 0.001) {
+      return Transform.scale(
+        scale: scaleCorrection,
+        alignment: Alignment.bottomCenter,
+        child: sprite,
+      );
+    }
+    return sprite;
+  }
+
+  double _heroScaleCorrection({required int animation, required int frame}) {
+    if (evolutionStage >= 4) return 1.0;
+    if (evolutionStage == 4) {
+      if (animation == 1) {
+        const bodyHeights = [198, 196, 199, 200, 198, 196, 199, 200];
+        return 212 / bodyHeights[frame % bodyHeights.length];
+      }
+      if (animation == 2) {
+        const corrections = [
+          1.055,
+          1.10,
+          1.171,
+          1.205,
+          1.152,
+          1.11,
+          1.146,
+          1.065,
+        ];
+        return corrections[frame % corrections.length];
+      }
+      if (animation == 3) {
+        const bodyHeights = [199, 197, 187, 202, 202];
+        return 212 / bodyHeights[frame % bodyHeights.length];
+      }
+    }
+    if (evolutionStage == 5) {
+      if (animation == 1 || animation == 2) return 1.06;
+      if (animation == 3) {
+        const bodyHeights = [199, 199, 199, 201, 201];
+        return 211 / bodyHeights[frame % bodyHeights.length];
+      }
+    }
+    return 1.0;
   }
 
   Widget _battleBadge(String text, Color color) => Container(
@@ -1253,6 +1370,14 @@ class _GamePageState extends State<GamePage>
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        '공격형 대검 전사 · 오른손 무기',
+                        style: TextStyle(
+                          color: Color(0xFF8FE8FF),
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -1299,7 +1424,7 @@ class _GamePageState extends State<GamePage>
                                   children: [
                                     Expanded(
                                       child: Image.asset(
-                                        'assets/frames/stage_$stage/grania_idle_0.png',
+                                        'assets/frames/stage_${_assetStageFor(stage)}/grania_idle_0.png',
                                         filterQuality: FilterQuality.none,
                                       ),
                                     ),
@@ -1401,7 +1526,7 @@ class _GamePageState extends State<GamePage>
           child: FilledButton.tonalIcon(
             onPressed: canEvolve ? _evolve : null,
             icon: Icon(
-              unlockedEvolutionStage == 6
+              unlockedEvolutionStage == 5
                   ? Icons.auto_awesome
                   : Icons.lock_open,
             ),

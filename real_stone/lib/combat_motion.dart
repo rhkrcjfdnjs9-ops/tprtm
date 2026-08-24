@@ -6,20 +6,19 @@ class CombatFrameCue {
 }
 
 abstract final class CombatMotions {
-  static const heroLeadIn = [CombatFrameCue(8, 90), CombatFrameCue(9, 75)];
+  static const heroLeadIn = [CombatFrameCue(0, 115)];
 
   static const heroWindup = [
-    CombatFrameCue(0, 105),
-    CombatFrameCue(1, 82),
-    CombatFrameCue(2, 58),
-    CombatFrameCue(3, 42),
+    CombatFrameCue(1, 110),
+    CombatFrameCue(2, 82),
+    CombatFrameCue(3, 54),
+    CombatFrameCue(4, 38),
   ];
 
   static const heroRecovery = [
-    CombatFrameCue(6, 82),
-    CombatFrameCue(7, 125),
-    CombatFrameCue(10, 90),
-    CombatFrameCue(11, 110),
+    CombatFrameCue(5, 88),
+    CombatFrameCue(6, 112),
+    CombatFrameCue(7, 145),
   ];
 
   static const golemLeadIn = [CombatFrameCue(8, 115), CombatFrameCue(9, 100)];
