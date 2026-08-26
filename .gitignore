@@ -50,3 +50,12 @@ app.*.map.json
 # Local SDK/tool downloads and generated release binaries
 .tooling/
 release/
+
+# Unity generated/local state
+unity/RealStoneUnity/[Ll]ibrary/
+unity/RealStoneUnity/[Tt]emp/
+unity/RealStoneUnity/[Oo]bj/
+unity/RealStoneUnity/[Bb]uild/
+unity/RealStoneUnity/[Bb]uilds/
+unity/RealStoneUnity/[Ll]ogs/
+unity/RealStoneUnity/[Uu]ser[Ss]ettings/

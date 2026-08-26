@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "master": "grania_rig_master_v3_no_wings.png",
+  "canvas": { "width": 1230, "height": 1278, "pixelsPerUnit": 100 },
+  "facing": "screen-right",
+  "weaponHand": "character-right",
+  "groups": [
+    "FX", "Hair", "Costume", "Body", "Leg", "Arm", "Weapon", "Head", "Face", "Accessory"
+  ],
+  "firstPass": [
+    "FX/HaloBack", "FX/FloatingCrystalsBack", "Accessory/CrystalCrown",
+    "Weapon/SwordBase", "Weapon/SwordGlow", "Weapon/SwordCrystals"
+  ],
+  "generatedLayers": {
+    "FX/HaloBack": "Layers/FX/HaloBack_v1.png",
+    "FX/FloatingCrystals": "Layers/FX/FloatingCrystals_v1.png",
+    "Accessory/CrystalCrown": "Layers/Accessory/CrystalCrown_v1.png",
+    "Weapon/SwordComplete": "Layers/Weapon/SwordComplete_v1.png",
+    "Hair/Back/Base": "Layers/Hair/Back/BackHairBase_v1.png",
+    "Head/FaceBase": "Layers/Head/FaceBase_v1.png",
+    "Hair/Front/Base": "Layers/Hair/Front/FrontHairBase_v1.png",
+    "Hair/Side/CharacterLeft": "Layers/Hair/Side/CharacterLeftLock_v1.png",
+    "Hair/Side/CharacterRight": "Layers/Hair/Side/CharacterRightLock_mirroredSource_v1.png",
+    "Body/TorsoArmor": "Layers/Body/TorsoArmor_v1.png",
+    "Body/NeckConnector": "Layers/Body/NeckConnector_v1.png",
+    "Costume/LowerComplete": "Layers/Costume/LowerCostumeComplete_v1.png",
+    "Arm/Right/Upper": "Layers/Arm/Right/UpperArm_v1.png",
+    "Arm/Right/Lower": "Layers/Arm/Right/LowerArm_v1.png",
+    "Arm/Right/GripHand": "Layers/Arm/Right/GripHand_v1.png",
+    "Arm/Left/Upper": "Layers/Arm/Left/UpperArm_mirroredSource_v1.png",
+    "Arm/Left/Lower": "Layers/Arm/Left/LowerArm_mirroredSource_v1.png",
+    "Arm/Left/Hand": "Layers/Arm/Left/RelaxedHand_v1.png",
+    "Leg/Right/Complete": "Layers/Leg/Right/LegComplete_v1.png",
+    "Leg/Left/Complete": "Layers/Leg/Left/LegComplete_mirroredSource_v1.png"
+  },
+  "layerSettings": {
+    "Hair/Side/CharacterLeft": { "pivot": "hair-root-left", "deformBones": ["Hair.Left.01", "Hair.Left.02", "Hair.Left.03"] },
+    "Hair/Side/CharacterRight": { "flipX": true, "source": "Hair/Side/CharacterLeft", "pivot": "hair-root-right", "deformBones": ["Hair.Right.01", "Hair.Right.02", "Hair.Right.03"] },
+    "Body/NeckConnector": { "pivot": "neck-base", "overlap": ["Head/FaceBase", "Body/TorsoArmor"] },
+    "Costume/LowerComplete": { "pivot": "pelvis", "deformBones": ["Pelvis", "Skirt.Center", "Skirt.Left", "Skirt.Right"] },
+    "Arm/Left/Upper": { "flipX": true, "source": "Arm/Right/Upper" },
+    "Arm/Left/Lower": { "flipX": true, "source": "Arm/Right/Lower" },
+    "Arm/Left/Hand": { "pivot": "wrist-top", "status": "ready" },
+    "Leg/Right/Complete": { "deformBones": ["Thigh.R", "Calf.R", "Foot.R"] },
+    "Leg/Left/Complete": { "flipX": true, "source": "Leg/Right/Complete", "deformBones": ["Thigh.L", "Calf.L", "Foot.L"] }
+  },
+  "status": "first-pass-separation-in-progress"
+}

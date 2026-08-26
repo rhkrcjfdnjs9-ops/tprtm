@@ -1,0 +1,16 @@
+character:
+  id: GraniaProduction
+  name: Grania
+  canvas:
+    width: 512
+    height: 512
+  alignment:
+    center_x: 256
+    ground_y: 64
+  pose:
+    type: neutral_a_pose
+  unity:
+    root: CharacterRoot
+    local_position: [0, 0, 0]
+    local_rotation: [0, 0, 0]
+    local_scale: [1, 1, 1]
