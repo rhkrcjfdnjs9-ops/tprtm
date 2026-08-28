@@ -1,0 +1,84 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30e1f62b28c843a4f932bf9816fdbc8e, type: 3}
+  m_Name: ignis
+  m_EditorClassIdentifier: Assembly-CSharp::SpiritStone.Prototype.PrototypeSpiritDefinition
+  id: ignis
+  displayName: "\uC774\uADF8\uB2C8\uC2A4"
+  rarity: 0
+  element: 0
+  combatRole: 0
+  baseAttack: 22
+  attackInterval: 1.05
+  basicAttack:
+    id: flame_strike
+    displayName: "\uD654\uC5FC \uD0C0\uACA9"
+    cooldown: 0
+    powerMultiplier: 1
+    duration: 0
+    energyGain: 12
+    effect: 0
+    maximumTargets: 1
+  skillOne:
+    id: blazing_charge
+    displayName: "\uC791\uC5F4 \uB3CC\uC9C4"
+    cooldown: 5.2
+    powerMultiplier: 2.6
+    duration: 0
+    energyGain: 22
+    effect: 0
+    maximumTargets: 1
+  skillTwo:
+    id: burning_will
+    displayName: "\uD0C0\uC624\uB974\uB294 \uC758\uC9C0"
+    cooldown: 10
+    powerMultiplier: 1.45
+    duration: 4
+    energyGain: 14
+    effect: 2
+    maximumTargets: 1
+  ultimate:
+    id: inferno_burst
+    displayName: "\uC5C5\uD654 \uD3ED\uBC1C"
+    cooldown: 0
+    powerMultiplier: 5.4
+    duration: 0
+    energyGain: 0
+    effect: 0
+    maximumTargets: 1
+  ultimateEnergyMaximum: 100
+  evolutionMilestones:
+  - requiredLevel: 1
+    stage: 0
+    displayName: "\uC815\uB839\uB3CC 1\uB2E8\uACC4"
+    attackMultiplier: 1
+    displayColor: {r: 0.48, g: 0.2, b: 0.12, a: 1}
+  - requiredLevel: 10
+    stage: 1
+    displayName: "\uC815\uB839\uB3CC 2\uB2E8\uACC4"
+    attackMultiplier: 1.15
+    displayColor: {r: 0.68, g: 0.22, b: 0.1, a: 1}
+  - requiredLevel: 20
+    stage: 2
+    displayName: "\uC815\uB839\uB3CC 3\uB2E8\uACC4"
+    attackMultiplier: 1.35
+    displayColor: {r: 0.88, g: 0.28, b: 0.08, a: 1}
+  - requiredLevel: 30
+    stage: 3
+    displayName: "\uC815\uB839 \uD574\uBC29"
+    attackMultiplier: 1.7
+    displayColor: {r: 1, g: 0.38, b: 0.1, a: 1}
+  - requiredLevel: 50
+    stage: 4
+    displayName: "\uC815\uB839 \uAC01\uC131"
+    attackMultiplier: 2.3
+    displayColor: {r: 1, g: 0.68, b: 0.18, a: 1}

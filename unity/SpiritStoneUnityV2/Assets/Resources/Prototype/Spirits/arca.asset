@@ -1,0 +1,84 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30e1f62b28c843a4f932bf9816fdbc8e, type: 3}
+  m_Name: arca
+  m_EditorClassIdentifier: Assembly-CSharp::SpiritStone.Prototype.PrototypeSpiritDefinition
+  id: arca
+  displayName: "\uC544\uB974\uCE74"
+  rarity: 0
+  element: 3
+  combatRole: 1
+  baseAttack: 18
+  attackInterval: 0.8
+  basicAttack:
+    id: rotating_core
+    displayName: "\uD68C\uC804 \uCF54\uC5B4"
+    cooldown: 0
+    powerMultiplier: 1
+    duration: 0
+    energyGain: 14
+    effect: 0
+    maximumTargets: 1
+  skillOne:
+    id: chain_lightning
+    displayName: "\uC5F0\uC1C4 \uBC88\uAC1C"
+    cooldown: 4.5
+    powerMultiplier: 2.25
+    duration: 0
+    energyGain: 24
+    effect: 0
+    maximumTargets: 3
+  skillTwo:
+    id: overcharge
+    displayName: "\uACFC\uCDA9\uC804"
+    cooldown: 9
+    powerMultiplier: 0.55
+    duration: 3
+    energyGain: 12
+    effect: 1
+    maximumTargets: 1
+  ultimate:
+    id: lightning_judgment
+    displayName: "\uB1CC\uAD11 \uC2EC\uD310"
+    cooldown: 0
+    powerMultiplier: 5
+    duration: 0
+    energyGain: 0
+    effect: 0
+    maximumTargets: 1
+  ultimateEnergyMaximum: 100
+  evolutionMilestones:
+  - requiredLevel: 1
+    stage: 0
+    displayName: "\uC815\uB839\uB3CC 1\uB2E8\uACC4"
+    attackMultiplier: 1
+    displayColor: {r: 0.32, g: 0.28, b: 0.42, a: 1}
+  - requiredLevel: 10
+    stage: 1
+    displayName: "\uC815\uB839\uB3CC 2\uB2E8\uACC4"
+    attackMultiplier: 1.15
+    displayColor: {r: 0.48, g: 0.3, b: 0.7, a: 1}
+  - requiredLevel: 20
+    stage: 2
+    displayName: "\uC815\uB839\uB3CC 3\uB2E8\uACC4"
+    attackMultiplier: 1.35
+    displayColor: {r: 0.65, g: 0.32, b: 0.9, a: 1}
+  - requiredLevel: 30
+    stage: 3
+    displayName: "\uC815\uB839 \uD574\uBC29"
+    attackMultiplier: 1.7
+    displayColor: {r: 0.72, g: 0.3, b: 1, a: 1}
+  - requiredLevel: 50
+    stage: 4
+    displayName: "\uC815\uB839 \uAC01\uC131"
+    attackMultiplier: 2.3
+    displayColor: {r: 0.92, g: 0.72, b: 1, a: 1}

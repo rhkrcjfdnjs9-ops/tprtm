@@ -1,0 +1,20 @@
+# Read-only Unity source discovery.
+prefix_rule(
+    pattern = ["rg"],
+    decision = "allow",
+    justification = "Allow fast project-local text source inspection",
+    match = [
+        "rg --files Assets -g *.cs",
+        "rg -n Rigidbody2D Assets -g *.cs",
+    ],
+)
+
+# Project-owned static verification harness.
+prefix_rule(
+    pattern = ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "Tools/verify-unity.ps1"],
+    decision = "allow",
+    justification = "Allow the repository's Unity static verification script",
+    match = [
+        "powershell.exe -NoProfile -ExecutionPolicy Bypass -File Tools/verify-unity.ps1",
+    ],
+)

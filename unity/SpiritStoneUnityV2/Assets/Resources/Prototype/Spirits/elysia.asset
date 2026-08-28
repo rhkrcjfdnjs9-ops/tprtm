@@ -1,0 +1,84 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30e1f62b28c843a4f932bf9816fdbc8e, type: 3}
+  m_Name: elysia
+  m_EditorClassIdentifier: Assembly-CSharp::SpiritStone.Prototype.PrototypeSpiritDefinition
+  id: elysia
+  displayName: "\uC5D8\uB9AC\uC2DC\uC544"
+  rarity: 0
+  element: 1
+  combatRole: 2
+  baseAttack: 14
+  attackInterval: 1.1
+  basicAttack:
+    id: water_impact
+    displayName: "\uBB3C\uBC29\uC6B8 \uCDA9\uACA9"
+    cooldown: 0
+    powerMultiplier: 1
+    duration: 0
+    energyGain: 12
+    effect: 0
+    maximumTargets: 1
+  skillOne:
+    id: weakening_wave
+    displayName: "\uC57D\uD654\uC758 \uD30C\uB3D9"
+    cooldown: 6
+    powerMultiplier: 0.75
+    duration: 4
+    energyGain: 20
+    effect: 3
+    maximumTargets: 1
+  skillTwo:
+    id: aqua_barrier
+    displayName: "\uC544\uCFE0\uC544 \uBC30\uB9AC\uC5B4"
+    cooldown: 11
+    powerMultiplier: 2.2
+    duration: 5
+    energyGain: 15
+    effect: 4
+    maximumTargets: 1
+  ultimate:
+    id: deep_sea_sanctuary
+    displayName: "\uC2EC\uD574\uC758 \uC131\uC5ED"
+    cooldown: 0
+    powerMultiplier: 0.45
+    duration: 5
+    energyGain: 0
+    effect: 5
+    maximumTargets: 1
+  ultimateEnergyMaximum: 100
+  evolutionMilestones:
+  - requiredLevel: 1
+    stage: 0
+    displayName: "\uC815\uB839\uB3CC 1\uB2E8\uACC4"
+    attackMultiplier: 1
+    displayColor: {r: 0.16, g: 0.4, b: 0.58, a: 1}
+  - requiredLevel: 10
+    stage: 1
+    displayName: "\uC815\uB839\uB3CC 2\uB2E8\uACC4"
+    attackMultiplier: 1.15
+    displayColor: {r: 0.12, g: 0.55, b: 0.72, a: 1}
+  - requiredLevel: 20
+    stage: 2
+    displayName: "\uC815\uB839\uB3CC 3\uB2E8\uACC4"
+    attackMultiplier: 1.35
+    displayColor: {r: 0.1, g: 0.7, b: 0.85, a: 1}
+  - requiredLevel: 30
+    stage: 3
+    displayName: "\uC815\uB839 \uD574\uBC29"
+    attackMultiplier: 1.7
+    displayColor: {r: 0.22, g: 0.82, b: 1, a: 1}
+  - requiredLevel: 50
+    stage: 4
+    displayName: "\uC815\uB839 \uAC01\uC131"
+    attackMultiplier: 2.3
+    displayColor: {r: 0.62, g: 0.94, b: 1, a: 1}

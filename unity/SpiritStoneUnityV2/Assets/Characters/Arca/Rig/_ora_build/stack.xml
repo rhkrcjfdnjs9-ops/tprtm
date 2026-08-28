@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<image version="0.0.3" w="1254" h="1254" name="Arca_Rig_v1">
+  <stack name="Arca">
+    <stack name="Front" />
+    <stack name="Face" />
+    <stack name="Body" />
+    <stack name="Back">
+      <layer name="Cape_Back_R_Visible_v1" src="data/cape_r.png" />
+      <layer name="Cape_Back_L_Visible_v1" src="data/cape_l.png" />
+    </stack>
+    <layer name="__REFERENCE_MASTER_LOCKED" src="data/reference_master.png" visibility="hidden" />
+  </stack>
+</image>
