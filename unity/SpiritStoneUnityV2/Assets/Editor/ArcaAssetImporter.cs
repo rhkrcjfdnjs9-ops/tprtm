@@ -15,6 +15,7 @@ namespace SpiritStone.Editor
             bool isProductionAnimation = assetPath.StartsWith(ArcaAnimationRoot) &&
                 (assetPath.Contains("/RuntimeFrames/") || assetPath.Contains("/Runtime/"));
             bool isPixel64 = assetPath.StartsWith(ArcaPixel64Root) || isProductionAnimation;
+            bool isPixelEffect = isPixel64 && assetPath.Contains("/Effects/");
             if (!assetPath.StartsWith(ArcaSourceRoot) && !assetPath.StartsWith(ArcaRigRoot) && !isPixel64) return;
             if (!assetPath.EndsWith(".png", System.StringComparison.OrdinalIgnoreCase)) return;
 
@@ -27,7 +28,9 @@ namespace SpiritStone.Editor
             importer.filterMode = isPixel64 ? FilterMode.Point : FilterMode.Bilinear;
             importer.wrapMode = TextureWrapMode.Clamp;
             importer.textureCompression = TextureImporterCompression.Uncompressed;
-            importer.spritePivot = isPixel64 ? new Vector2(0.5f, 2f / 64f) : new Vector2(0.5f, 0.5f);
+            importer.spritePivot = isPixelEffect
+                ? new Vector2(0.5f, 0.5f)
+                : isPixel64 ? new Vector2(0.5f, 2f / 64f) : new Vector2(0.5f, 0.5f);
         }
     }
 }

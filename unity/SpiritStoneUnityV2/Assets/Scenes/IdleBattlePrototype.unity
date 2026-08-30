@@ -163,6 +163,9 @@ MonoBehaviour:
   spiritHasteCooldown: 15
   spiritHasteDuration: 5
   spiritHasteIntervalMultiplier: 0.7
+  showProtagonistVisual: 0
+  enableLethalEnemyDamagePreview: 0
+  lethalEnemyDamageMultiplier: 1
 --- !u!4 &338176672
 Transform:
   m_ObjectHideFlags: 0

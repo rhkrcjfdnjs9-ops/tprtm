@@ -21,7 +21,7 @@ namespace SpiritStone.Prototype
                 new PrototypeSpiritEvolutionMilestone(30, SpiritEvolutionStage.Liberated, "정령 해방", 1.7f, new Color(0.72f, 0.3f, 1f)),
                 new PrototypeSpiritEvolutionMilestone(50, SpiritEvolutionStage.Awakened, "정령 각성", 2.3f, new Color(0.92f, 0.72f, 1f))),
             ["ignis"] = new PrototypeSpiritData(
-                "ignis", "이그니스", PrototypeSpiritRarity.SSR, SpiritElement.Fire, SpiritCombatRole.MeleeAttack, 22f, 1.05f,
+                "ignis", "호노카", PrototypeSpiritRarity.SSR, SpiritElement.Fire, SpiritCombatRole.MeleeAttack, 22f, 1.05f,
                 new PrototypeSpiritAbilityData("flame_strike", "화염 타격", 0f, 1f, 0f, 12f),
                 new PrototypeSpiritAbilityData("blazing_charge", "작열 돌진", 5.2f, 2.6f, 0f, 22f),
                 new PrototypeSpiritAbilityData("burning_will", "타오르는 의지", 10f, 1.45f, 4f, 14f, SpiritAbilityEffect.AttackPowerBuff),

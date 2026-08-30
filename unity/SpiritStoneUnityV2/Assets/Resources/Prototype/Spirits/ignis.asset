@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: ignis
   m_EditorClassIdentifier: Assembly-CSharp::SpiritStone.Prototype.PrototypeSpiritDefinition
   id: ignis
-  displayName: "\uC774\uADF8\uB2C8\uC2A4"
+  displayName: "\uD638\uB178\uCE74"
   rarity: 0
   element: 0
   combatRole: 0

@@ -9,9 +9,12 @@ namespace SpiritStone.Characters
     {
         private static readonly int AttackTrigger = Animator.StringToHash("Attack");
         private static readonly int SkillTrigger = Animator.StringToHash("Skill");
+        private static readonly int SkillTwoTrigger = Animator.StringToHash("SkillTwo");
+        private static readonly int UltimateTrigger = Animator.StringToHash("Ultimate");
         private static readonly int HitTrigger = Animator.StringToHash("Hit");
         private static readonly int DeathTrigger = Animator.StringToHash("Death");
         private static readonly int IsMovingParameter = Animator.StringToHash("IsMoving");
+        private static readonly int IdleState = Animator.StringToHash("Idle");
 
         [SerializeField] private SpriteRenderer spriteRenderer;
         [SerializeField] private Animator animator;
@@ -85,6 +88,16 @@ namespace SpiritStone.Characters
             SetTriggerIfPresent(SkillTrigger);
         }
 
+        public void PlaySkillTwo()
+        {
+            SetTriggerIfPresent(SkillTwoTrigger);
+        }
+
+        public void PlayUltimate()
+        {
+            SetTriggerIfPresent(UltimateTrigger);
+        }
+
         public void PlayHit()
         {
             SetTriggerIfPresent(HitTrigger);
@@ -93,6 +106,25 @@ namespace SpiritStone.Characters
         public void PlayDeath()
         {
             SetTriggerIfPresent(DeathTrigger);
+        }
+
+        public void ResetToIdle()
+        {
+            CacheComponents();
+            if (animator != null && animator.runtimeAnimatorController != null)
+            {
+                animator.ResetTrigger(AttackTrigger);
+                animator.ResetTrigger(SkillTrigger);
+                animator.ResetTrigger(SkillTwoTrigger);
+                animator.ResetTrigger(UltimateTrigger);
+                animator.ResetTrigger(HitTrigger);
+                animator.ResetTrigger(DeathTrigger);
+                if (hasMovingParameter) animator.SetBool(IsMovingParameter, false);
+                animator.Play(IdleState, 0, 0f);
+                animator.Update(0f);
+            }
+            if (spriteRenderer != null) spriteRenderer.enabled = true;
+            previousPosition = transform.position;
         }
 
         private void CacheComponents()

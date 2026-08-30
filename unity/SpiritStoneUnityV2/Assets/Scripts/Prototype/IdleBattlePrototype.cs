@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using SpiritStone.Characters;
 using SpiritStone.Core;
+using SpiritStone.Characters.Arca;
 using UnityEngine;
 using UnityEngine.U2D;
 
@@ -40,6 +41,11 @@ namespace SpiritStone.Prototype
         [SerializeField, Min(0.1f)] private float spiritHasteCooldown = 15f;
         [SerializeField, Min(0.1f)] private float spiritHasteDuration = 5f;
         [SerializeField, Range(0.1f, 1f)] private float spiritHasteIntervalMultiplier = 0.7f;
+        [Header("Prototype Visuals")]
+        [SerializeField] private bool showProtagonistVisual;
+        [Header("Editor Death Preview")]
+        [SerializeField] private bool enableLethalEnemyDamagePreview;
+        [SerializeField, Min(1f)] private float lethalEnemyDamageMultiplier = 1f;
 
         private Transform protagonist;
         private Transform arca;
@@ -48,6 +54,7 @@ namespace SpiritStone.Prototype
         private Transform[] spiritVisuals;
         private Transform[] arcaCoreVisuals;
         private SpriteRenderer[] arcaCoreRenderers;
+        private ThunderCoreCombatController arcaCoreController;
         private SpriteRenderer protagonistRenderer;
         private SpriteRenderer[] spiritRenderers;
         private PixelCharacterView protagonistPixelView;
@@ -343,6 +350,9 @@ namespace SpiritStone.Prototype
                 : $" · {PrototypeElementChart.GetRelationshipLabel(currentEnemy.Element, targetSlot.Spirit.Element)}";
             float rawDamage = battleSystem.EnemyAttackDamage * damageMultiplier * elementMultiplier
                 * GetEnemyAttackMultiplier() * GetIncomingDamageMultiplier();
+#if UNITY_EDITOR
+            if (enableLethalEnemyDamagePreview) rawDamage *= lethalEnemyDamageMultiplier;
+#endif
             float incomingDamage = target.CalculateDamage(rawDamage);
             float absorbedDamage = Mathf.Min(teamShield, incomingDamage);
             teamShield -= absorbedDamage;
@@ -358,6 +368,11 @@ namespace SpiritStone.Prototype
                     PixelCharacterView targetView = spiritPixelViews[targetSlot.SlotIndex];
                     if (target.IsAlive) targetView?.PlayHit();
                     else targetView?.PlayDeath();
+                    if (targetSlot == arcaSlot)
+                    {
+                        if (target.IsAlive) arcaCoreController?.PlayHit(0.24f);
+                        else arcaCoreController?.PlayDeath();
+                    }
                 }
                 combatVfxSystem?.PlayImpact(target.Visual, currentEnemy.Element,
                     currentEnemy.Archetype == PrototypeEnemyArchetype.Heavy || currentEnemy.IsBoss);
@@ -387,6 +402,7 @@ namespace SpiritStone.Prototype
             protagonistPixelView = CreatePixelCharacter("Protagonist", GetProtagonistHomePosition(), new Color(0.2f, 0.65f, 1f), 3, 50);
             protagonistRenderer = protagonistPixelView.Renderer;
             protagonist = protagonistRenderer.transform;
+            protagonistRenderer.enabled = showProtagonistVisual;
             PixelCharacterView arcaPixelView = CreatePixelCharacter("Arca", GetSpiritHomePosition(0), new Color(0.65f, 0.25f, 1f), 3, 50);
             arcaRenderer = arcaPixelView.Renderer;
             arca = arcaRenderer.transform;
@@ -404,9 +420,14 @@ namespace SpiritStone.Prototype
             enemyVisuals = new[] { enemyRenderer.transform, enemyBRenderer.transform, enemyCRenderer.transform };
 
             CreateActor("Ground", new Vector3(0f, -2.55f, 0f), new Vector2(6.5f, 0.3f), new Color(0.16f, 0.2f, 0.28f), 0);
-            SpriteRenderer coreARenderer = CreateActor("ThunderCoreA", GetSpiritHomePosition(0) + new Vector3(-0.48f, 0.05f, 0f), new Vector2(0.18f, 0.18f), new Color(0.9f, 0.65f, 1f), 4);
-            SpriteRenderer coreBRenderer = CreateActor("ThunderCoreB", GetSpiritHomePosition(0) + new Vector3(0f, 0.58f, 0f), new Vector2(0.18f, 0.18f), new Color(0.9f, 0.65f, 1f), 4);
-            SpriteRenderer coreCRenderer = CreateActor("ThunderCoreC", GetSpiritHomePosition(0) + new Vector3(0.48f, 0.05f, 0f), new Vector2(0.18f, 0.18f), new Color(0.9f, 0.65f, 1f), 4);
+            SpriteRenderer coreARenderer = CreateActor("ThunderCoreA", GetSpiritHomePosition(0), new Vector2(0.18f, 0.18f), new Color(0.9f, 0.65f, 1f), 2);
+            SpriteRenderer coreBRenderer = CreateActor("ThunderCoreB", GetSpiritHomePosition(0), new Vector2(0.18f, 0.18f), new Color(0.9f, 0.65f, 1f), 2);
+            SpriteRenderer coreCRenderer = CreateActor("ThunderCoreC", GetSpiritHomePosition(0), new Vector2(0.18f, 0.18f), new Color(0.9f, 0.65f, 1f), 2);
+            Sprite[] thunderCoreFrames = Resources.LoadAll<Sprite>("Characters/Arca/ThunderCore/IdleRotateV2");
+            Array.Sort(thunderCoreFrames, (left, right) => string.CompareOrdinal(left.name, right.name));
+            ConfigureThunderCoreAnimation(coreARenderer, thunderCoreFrames, 0);
+            ConfigureThunderCoreAnimation(coreBRenderer, thunderCoreFrames, 2);
+            ConfigureThunderCoreAnimation(coreCRenderer, thunderCoreFrames, 5);
             PixelCharacterView ignisPixelView = CreatePixelCharacter("Ignis", GetSpiritHomePosition(1), GetElementColor(SpiritElement.Fire), 3, 50);
             SpriteRenderer ignisRenderer = ignisPixelView.Renderer;
             PixelCharacterView elysiaPixelView = CreatePixelCharacter("Elysia", GetSpiritHomePosition(2), GetElementColor(SpiritElement.Water), 3, 50);
@@ -419,7 +440,18 @@ namespace SpiritStone.Prototype
             spiritVisuals = new[] { arca, ignisRenderer.transform, elysiaRenderer.transform };
             arcaCoreRenderers = new[] { coreARenderer, coreBRenderer, coreCRenderer };
             arcaCoreVisuals = new[] { coreARenderer.transform, coreBRenderer.transform, coreCRenderer.transform };
+            arcaCoreController = gameObject.AddComponent<ThunderCoreCombatController>();
             RefreshFormationRuntime();
+        }
+
+        private static void ConfigureThunderCoreAnimation(SpriteRenderer renderer, Sprite[] frames, int startFrame)
+        {
+            if (renderer == null || frames == null || frames.Length == 0) return;
+
+            renderer.color = Color.white;
+            renderer.transform.localScale = Vector3.one * 0.42f;
+            ThunderCoreSpriteAnimator animator = renderer.gameObject.AddComponent<ThunderCoreSpriteAnimator>();
+            animator.Configure(renderer, frames, startFrame);
         }
 
         private SpriteRenderer CreateActor(string objectName, Vector3 position, Vector2 size, Color color, int sortingOrder)
@@ -524,10 +556,16 @@ namespace SpiritStone.Prototype
             battleSystem.BeginEncounter(currentEnemy);
             combatTargetSystem.BeginEncounter(currentEnemy.MaximumHealth, isBoss ? 1 : 3);
             RefreshPartyStats(wave == 1);
+            List<int> revivedSlotIndices = null;
             if (wave != 1)
             {
                 for (int index = 0; index < partyMembers.Length; index++)
-                    if (partyMembers[index].IsActive && !partyMembers[index].IsAlive) partyMembers[index].Revive(0.35f);
+                {
+                    if (!partyMembers[index].IsActive || partyMembers[index].IsAlive) continue;
+                    revivedSlotIndices ??= new List<int>();
+                    revivedSlotIndices.Add(index);
+                    partyMembers[index].Revive(0.35f);
+                }
                 UpdatePartyVisualState();
             }
             for (int index = 0; index < spiritSlots.Length; index++)
@@ -543,8 +581,40 @@ namespace SpiritStone.Prototype
             for (int index = 0; index < spiritVisuals.Length; index++)
                 spiritVisuals[index].position = GetSpiritHomePosition(index);
             PositionArcaCores();
+            arcaCoreController?.ReturnToIdle();
+            ResetAlivePartyAnimations();
+            PlayReviveEffects(revivedSlotIndices);
             battleMessage = isBoss ? $"스테이지 {Stage} 보스 등장!" : $"{currentEnemy.DisplayName} 등장";
             StartCoroutine(BeginEncounter());
+        }
+
+        private void PlayReviveEffects(List<int> revivedSlotIndices)
+        {
+            if (revivedSlotIndices == null || combatVfxSystem == null) return;
+            foreach (int index in revivedSlotIndices)
+            {
+                if (index < 0 || index >= spiritSlots.Length || index >= spiritRenderers.Length) continue;
+                PrototypeSpiritSlot slot = spiritSlots[index];
+                SpriteRenderer renderer = spiritRenderers[index];
+                if (slot == null || !slot.IsAssigned || renderer == null) continue;
+
+                bool isArca = slot.SpiritId.Equals("arca", StringComparison.OrdinalIgnoreCase);
+                if (isArca && arcaCoreRenderers != null)
+                {
+                    foreach (SpriteRenderer coreRenderer in arcaCoreRenderers)
+                        if (coreRenderer != null) coreRenderer.enabled = false;
+                }
+
+                combatVfxSystem.PlayRevive(spiritVisuals[index], renderer, slot.Spirit.Element,
+                    isArca ? RevealArcaCores : null);
+            }
+        }
+
+        private void RevealArcaCores()
+        {
+            if (arcaCoreRenderers == null || arcaSlot == null || !arcaSlot.IsAssigned) return;
+            foreach (SpriteRenderer coreRenderer in arcaCoreRenderers)
+                if (coreRenderer != null) coreRenderer.enabled = true;
         }
 
         private void DealDamage(float damage, string source, int maximumTargets = 1)
@@ -685,7 +755,10 @@ namespace SpiritStone.Prototype
             shieldSourceSlot = null;
             battleMessage = "아군이 쓰러졌습니다. 전투를 재정비합니다.";
             yield return new WaitForSeconds(respawnDelay * 2f);
+            SetPartyVisualsVisible(false);
+            yield return new WaitForSeconds(0.25f);
             RefreshPartyStats(true);
+            ResetAlivePartyAnimations();
             if (wave == 10 && stageProgression.ReturnFromFailedBossChallenge())
             {
                 wave = 1;
@@ -819,7 +892,10 @@ namespace SpiritStone.Prototype
                     Transform projectileOrigin = isArca && arcaCoreVisuals != null && arcaCoreVisuals.Length > 1
                         ? arcaCoreVisuals[1]
                         : visual;
-                    yield return MoveProjectile(projectileOrigin, GetElementColor(slot.Spirit.Element), new Vector3(0.5f, 0.09f, 1f), projectileDuration);
+                    if (isArca && combatVfxSystem != null)
+                        yield return combatVfxSystem.PlayArcaBasicAttack(projectileOrigin, enemy, projectileDuration);
+                    else
+                        yield return MoveProjectile(projectileOrigin, GetElementColor(slot.Spirit.Element), new Vector3(0.5f, 0.09f, 1f), projectileDuration);
                 }
                 if (battleState == BattleState.Fighting && IsSpiritAlive(slot))
                 {
@@ -834,44 +910,22 @@ namespace SpiritStone.Prototype
 
         private IEnumerator ChargeArcaCores(float duration)
         {
-            if (arcaCoreVisuals == null || arcaCoreRenderers == null) yield break;
-            Vector3[] originalScales = new Vector3[arcaCoreVisuals.Length];
-            Color[] originalColors = new Color[arcaCoreRenderers.Length];
-            for (int index = 0; index < arcaCoreVisuals.Length; index++)
-            {
-                originalScales[index] = arcaCoreVisuals[index].localScale;
-                originalColors[index] = arcaCoreRenderers[index].color;
-            }
-
-            float elapsed = 0f;
-            while (elapsed < duration && battleState == BattleState.Fighting)
-            {
-                elapsed += Time.deltaTime;
-                float t = Mathf.Clamp01(elapsed / duration);
-                float pulse = Mathf.Sin(t * Mathf.PI);
-                for (int index = 0; index < arcaCoreVisuals.Length; index++)
-                {
-                    arcaCoreVisuals[index].localScale = originalScales[index] * (1f + pulse * 0.35f);
-                    arcaCoreRenderers[index].color = Color.Lerp(originalColors[index], Color.white, pulse * 0.8f);
-                }
-                yield return null;
-            }
-
-            for (int index = 0; index < arcaCoreVisuals.Length; index++)
-            {
-                arcaCoreVisuals[index].localScale = originalScales[index];
-                arcaCoreRenderers[index].color = originalColors[index];
-            }
+            arcaCoreController?.PlayBasicAttack(duration + projectileDuration);
+            yield return new WaitForSeconds(duration);
         }
 
         private IEnumerator PerformSpiritSkillOne(PrototypeSpiritSlot slot, Transform visual)
         {
             slot.SetActing(true);
             spiritPixelViews?[slot.SlotIndex]?.PlaySkill();
+            if (slot == arcaSlot) arcaCoreController?.PlaySkillOne(projectileDuration + 0.35f);
             slot.BeginSkillOne(spiritSpecialGrowthSystem.GetCooldownMultiplier(slot.SpiritId));
             battleMessage = $"{slot.DisplayName} 스킬 · {slot.Spirit.SkillOne.DisplayName}!";
             if (slot.Spirit.CombatRole == SpiritCombatRole.MeleeAttack)
                 yield return MeleeStrikeRoutine(visual, 0.55f);
+            else if (slot == arcaSlot)
+                yield return combatVfxSystem.PlayArcaChainLightning(arcaCoreVisuals, visual,
+                    GetAliveEnemyVisuals(slot.Spirit.SkillOne.MaximumTargets));
             else
                 yield return MoveProjectile(visual, Color.Lerp(GetElementColor(slot.Spirit.Element), Color.white, 0.35f), new Vector3(0.85f, 0.16f, 1f), projectileDuration * 0.75f);
             if (battleState == BattleState.Fighting && IsSpiritAlive(slot))
@@ -886,8 +940,27 @@ namespace SpiritStone.Prototype
             slot.SetActing(false);
         }
 
+        private List<Transform> GetAliveEnemyVisuals(int maximumTargets)
+        {
+            var targets = new List<Transform>();
+            if (enemyVisuals == null) return targets;
+            int safeMaximum = Mathf.Max(1, maximumTargets);
+            for (int index = 0; index < enemyVisuals.Length && targets.Count < safeMaximum; index++)
+            {
+                if (!combatTargetSystem.IsAlive(index)) continue;
+                targets.Add(enemyVisuals[index]);
+            }
+            return targets;
+        }
+
         private void ActivateSpiritSkillTwo(PrototypeSpiritSlot slot)
         {
+            spiritPixelViews?[slot.SlotIndex]?.PlaySkillTwo();
+            if (slot == arcaSlot)
+            {
+                arcaCoreController?.PlayOvercharge(0.8f);
+                combatVfxSystem?.PlayArcaOvercharge(spiritVisuals[slot.SlotIndex], arcaCoreVisuals);
+            }
             slot.BeginSkillTwo(spiritSpecialGrowthSystem.GetCooldownMultiplier(slot.SpiritId));
             PrototypeAbilityExecution execution = PrototypeSpiritAbilitySystem.Resolve(
                 slot.Spirit.SkillTwo, SpiritAbilitySlot.SkillTwo,
@@ -903,6 +976,13 @@ namespace SpiritStone.Prototype
             slot.SetActing(true);
             slot.SpendUltimateEnergy();
             battleMessage = $"{slot.DisplayName} 궁극기 · {slot.Spirit.Ultimate.DisplayName}!";
+
+            spiritPixelViews?[slot.SlotIndex]?.PlayUltimate();
+            if (slot.SpiritId.Equals("arca", StringComparison.OrdinalIgnoreCase))
+            {
+                arcaCoreController?.PlayUltimate(1.15f);
+                yield return new WaitForSeconds(0.5f);
+            }
 
             GameObject lightning = new($"{slot.SpiritId}_Ultimate");
             lightning.transform.SetParent(transform, false);
@@ -1096,16 +1176,16 @@ namespace SpiritStone.Prototype
 
         private static Vector3 GetProtagonistHomePosition()
         {
-            return new Vector3(-2.25f, -1.45f, 0f);
+            return new Vector3(-2.65f, -1.45f, 0f);
         }
 
         private static Vector3 GetSpiritHomePosition(int slotIndex)
         {
             return slotIndex switch
             {
-                0 => new Vector3(-1.50f, -1.45f, 0f),
-                1 => new Vector3(-0.75f, -1.45f, 0f),
-                2 => new Vector3(0f, -1.45f, 0f),
+                0 => new Vector3(-1.75f, -1.45f, 0f),
+                1 => new Vector3(-0.85f, -1.45f, 0f),
+                2 => new Vector3(0.05f, -1.45f, 0f),
                 _ => throw new ArgumentOutOfRangeException(nameof(slotIndex))
             };
         }
@@ -1498,6 +1578,7 @@ namespace SpiritStone.Prototype
             if (spiritVisuals == null || spiritRenderers == null) return;
             int supportTargetSlot = arcaSlot?.SlotIndex ?? Array.FindIndex(spiritSlots, slot => slot.IsAssigned);
             arca = supportTargetSlot >= 0 ? spiritVisuals[supportTargetSlot] : protagonist;
+            arcaCoreController?.Configure(arca, arcaCoreVisuals, arcaCoreRenderers);
             for (int index = 0; index < spiritSlots.Length; index++)
             {
                 spiritVisuals[index].position = GetSpiritHomePosition(index);
@@ -1520,9 +1601,9 @@ namespace SpiritStone.Prototype
         {
             if (arcaCoreVisuals == null || arcaSlot == null) return;
             Vector3 home = GetSpiritHomePosition(arcaSlot.SlotIndex);
-            arcaCoreVisuals[0].position = home + new Vector3(-0.34f, 0.34f, 0f);
-            arcaCoreVisuals[1].position = home + new Vector3(0f, 0.78f, 0f);
-            arcaCoreVisuals[2].position = home + new Vector3(0.34f, 0.34f, 0f);
+            arcaCoreVisuals[0].position = home + new Vector3(-0.55f, 0.48f, 0f);
+            arcaCoreVisuals[1].position = home + new Vector3(0f, 1.08f, 0f);
+            arcaCoreVisuals[2].position = home + new Vector3(0.55f, 0.48f, 0f);
         }
 
         private void InitializePartyMembers()
@@ -1644,10 +1725,34 @@ namespace SpiritStone.Prototype
         private void UpdatePartyVisualState()
         {
             if (partyMembers == null || arcaCoreRenderers == null) return;
-            bool isArcaAlive = arcaSlot != null && arcaSlot.SlotIndex < partyMembers.Length
-                && partyMembers[arcaSlot.SlotIndex].IsAlive;
+            bool showArcaCores = arcaSlot != null && arcaSlot.IsAssigned;
             for (int index = 0; index < arcaCoreRenderers.Length; index++)
-                arcaCoreRenderers[index].enabled = isArcaAlive;
+                arcaCoreRenderers[index].enabled = showArcaCores;
+        }
+
+        private void SetPartyVisualsVisible(bool isVisible)
+        {
+            if (spiritRenderers != null)
+            {
+                for (int index = 0; index < spiritRenderers.Length; index++)
+                    if (spiritRenderers[index] != null)
+                        spiritRenderers[index].enabled = isVisible && spiritSlots[index].IsAssigned;
+            }
+
+            if (arcaCoreRenderers == null) return;
+            for (int index = 0; index < arcaCoreRenderers.Length; index++)
+                if (arcaCoreRenderers[index] != null)
+                    arcaCoreRenderers[index].enabled = isVisible && arcaSlot != null;
+        }
+
+        private void ResetAlivePartyAnimations()
+        {
+            if (partyMembers == null || spiritPixelViews == null) return;
+            for (int index = 0; index < partyMembers.Length && index < spiritPixelViews.Length; index++)
+            {
+                if (!partyMembers[index].IsAlive) continue;
+                spiritPixelViews[index]?.ResetToIdle();
+            }
         }
 
         private void UpdateArcaColor()

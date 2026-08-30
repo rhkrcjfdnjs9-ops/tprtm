@@ -35,7 +35,6 @@ namespace SpiritStone.Prototype
         public void TakeDamage(float damage)
         {
             CurrentHealth = Mathf.Max(0f, CurrentHealth - Mathf.Max(0f, damage));
-            UpdateVisibility();
         }
 
         public float HealByMaximumHealthRatio(float ratio)
