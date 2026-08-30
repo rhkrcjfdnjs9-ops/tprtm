@@ -7,6 +7,8 @@ namespace SpiritStone.Prototype
         AttackPowerBuff,
         EnemyAttackReduction,
         Shield,
-        DamageReduction
+        DamageReduction,
+        HealAll,
+        TeamAttackPowerBuff
     }
 }

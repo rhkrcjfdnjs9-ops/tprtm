@@ -13,7 +13,8 @@ namespace SpiritStone.Prototype
             int experienceReward,
             SpiritElement element,
             Color displayColor,
-            bool isBoss)
+            bool isBoss,
+            PrototypeEnemyArchetype archetype)
         {
             DisplayName = displayName;
             MaximumHealth = Mathf.Max(1f, maximumHealth);
@@ -24,6 +25,7 @@ namespace SpiritStone.Prototype
             Element = element;
             DisplayColor = displayColor;
             IsBoss = isBoss;
+            Archetype = archetype;
         }
 
         public string DisplayName { get; }
@@ -35,5 +37,6 @@ namespace SpiritStone.Prototype
         public SpiritElement Element { get; }
         public Color DisplayColor { get; }
         public bool IsBoss { get; }
+        public PrototypeEnemyArchetype Archetype { get; }
     }
 }

@@ -50,6 +50,11 @@ namespace SpiritStone.Prototype
             return appliedDamage;
         }
 
+        public void SynchronizeEnemyHealth(float remainingHealth)
+        {
+            EnemyHealth = Mathf.Clamp(remainingHealth, 0f, EnemyMaximumHealth);
+        }
+
         public static float ApplyElement(float rawDamage, SpiritElement attacker, SpiritElement defender) =>
             rawDamage * PrototypeElementChart.GetDamageMultiplier(attacker, defender);
 
@@ -59,17 +64,16 @@ namespace SpiritStone.Prototype
             return baseAttack * (1f + Mathf.Max(0, upgradeLevel) * 0.12f) * levelMultiplier;
         }
 
-        public static float CalculateSpiritDamage(PrototypeSpiritSlot slot, int level, int upgradeLevel, int breakthrough,
+        public static float CalculateSpiritDamage(PrototypeSpiritSlot slot, PrototypeSpiritSlot[] partySlots, int level,
+            float commonAttackMultiplier, int breakthrough,
             bool battleCommandActive, float battleCommandBonus)
         {
             float levelMultiplier = 1f + (Mathf.Max(1, level) - 1) * 0.08f;
             float commandMultiplier = battleCommandActive ? 1f + battleCommandBonus : 1f;
             float evolutionMultiplier = slot.Spirit.GetEvolutionForLevel(level).AttackMultiplier;
-            float skillMultiplier = slot.SkillTwoRemaining > 0f && slot.Spirit.SkillTwo.Effect == SpiritAbilityEffect.AttackPowerBuff
-                ? slot.Spirit.SkillTwo.PowerMultiplier : 1f;
             float breakthroughMultiplier = 1f + Mathf.Max(0, breakthrough) * 0.08f;
-            return slot.Spirit.BaseAttack * (1f + Mathf.Max(0, upgradeLevel) * 0.12f) * levelMultiplier
-                * commandMultiplier * evolutionMultiplier * skillMultiplier * breakthroughMultiplier;
+            return slot.Spirit.BaseAttack * Mathf.Max(1f, commonAttackMultiplier) * levelMultiplier
+                * commandMultiplier * evolutionMultiplier * breakthroughMultiplier;
         }
 
         public static float GetEnemyAttackMultiplier(PrototypeSpiritSlot[] slots)
@@ -92,13 +96,12 @@ namespace SpiritStone.Prototype
             return multiplier;
         }
 
-        public static float GetSpiritAttackInterval(PrototypeSpiritSlot slot, bool hasteActive, float hasteMultiplier)
+        public static float GetSpiritAttackInterval(PrototypeSpiritSlot slot, PrototypeSpiritSlot[] partySlots,
+            bool hasteActive, float hasteMultiplier, float commonTrainingMultiplier)
         {
             float interval = slot.Spirit.AttackInterval;
-            if (slot.SkillTwoRemaining > 0f && slot.Spirit.SkillTwo.Effect == SpiritAbilityEffect.AttackSpeedBuff)
-                interval *= slot.Spirit.SkillTwo.PowerMultiplier;
             if (hasteActive) interval *= hasteMultiplier;
-            return interval;
+            return interval * Mathf.Clamp(commonTrainingMultiplier, 0.1f, 1f);
         }
     }
 }

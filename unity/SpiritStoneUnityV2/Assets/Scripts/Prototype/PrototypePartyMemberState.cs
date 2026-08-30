@@ -38,6 +38,14 @@ namespace SpiritStone.Prototype
             UpdateVisibility();
         }
 
+        public float HealByMaximumHealthRatio(float ratio)
+        {
+            if (!IsAlive) return 0f;
+            float previousHealth = CurrentHealth;
+            CurrentHealth = Mathf.Min(MaximumHealth, CurrentHealth + MaximumHealth * Mathf.Max(0f, ratio));
+            return CurrentHealth - previousHealth;
+        }
+
         public void UpdateStats(float maximumHealth, float defense, float targetWeight, bool refillHealth)
         {
             IsActive = true;
@@ -58,7 +66,15 @@ namespace SpiritStone.Prototype
 
         public void Revive(float healthRatio)
         {
+            if (!IsActive) return;
             CurrentHealth = MaximumHealth * Mathf.Clamp(healthRatio, 0.01f, 1f);
+            UpdateVisibility();
+        }
+
+        public void RestoreHealthRatio(float healthRatio)
+        {
+            if (!IsActive) return;
+            CurrentHealth = MaximumHealth * Mathf.Clamp01(healthRatio);
             UpdateVisibility();
         }
 

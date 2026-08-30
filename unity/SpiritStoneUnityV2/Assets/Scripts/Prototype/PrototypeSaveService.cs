@@ -14,8 +14,19 @@ namespace SpiritStone.Prototype
         private const string OwnedSpiritKeyPrefix = "Prototype.Ownership.Spirit.";
         private const string SpiritShardKeyPrefix = "Prototype.SpiritShard.";
         private const string SpiritBreakthroughKeyPrefix = "Prototype.SpiritBreakthrough.";
+        private const string SpiritSpecialGrowthKeyPrefix = "Prototype.SpiritSpecialGrowth.";
         private const string GoldKey = "Prototype.Gold";
         private const string UpgradeKey = "Prototype.Upgrade";
+        private const string ProtagonistBattleCommandKey = "Prototype.Protagonist.BattleCommand";
+        private const string ProtagonistSpiritHasteKey = "Prototype.Protagonist.SpiritHaste";
+        private const string SpiritUpgradeStonesKey = "Prototype.SpiritTraining.Stones";
+        private const string EnhancementStonesKey = "Prototype.SpiritTraining.CommonStones";
+        private const string SpiritAttackTrainingKey = "Prototype.SpiritTraining.Attack";
+        private const string SpiritDefenseTrainingKey = "Prototype.SpiritTraining.Defense";
+        private const string SpiritAttackSpeedTrainingKey = "Prototype.SpiritTraining.AttackSpeed";
+        private const string SpiritMaximumHealthTrainingKey = "Prototype.SpiritTraining.MaximumHealth";
+        private const string SpiritCriticalChanceTrainingKey = "Prototype.SpiritTraining.CriticalChance";
+        private const string SpiritCriticalDamageTrainingKey = "Prototype.SpiritTraining.CriticalDamage";
         private const string ProtagonistLevelKey = "Prototype.ProtagonistLevel";
         private const string ProtagonistExperienceKey = "Prototype.ProtagonistExperience";
         private const string ArcaLevelKey = "Prototype.ArcaLevel";
@@ -23,12 +34,15 @@ namespace SpiritStone.Prototype
         private const string LastActiveUtcTicksKey = "Prototype.LastActiveUtcTicks";
         private const string SpiritKeyPrefix = "Prototype.Spirit.";
         private const string FormationSlotKeyPrefix = "Prototype.Formation.Slot.";
+        private const string SummonHistoryCountKey = "Prototype.SummonHistory.Count";
+        private const string SummonHistoryKeyPrefix = "Prototype.SummonHistory.";
         private static readonly string[] DefaultFormation = { "arca", "ignis", "elysia" };
 
         public static PrototypeSaveData Load()
         {
             int savedStage = Mathf.Max(1, PlayerPrefs.GetInt(StageKey, 1));
             int migratedHighestClearedStage = Mathf.Max(0, savedStage - 1);
+            int savedSpiritHasteLevel = Mathf.Max(0, PlayerPrefs.GetInt(ProtagonistSpiritHasteKey, 0));
             PrototypeSaveData data = new PrototypeSaveData
             {
                 Stage = savedStage,
@@ -39,11 +53,28 @@ namespace SpiritStone.Prototype
                 IsOwnershipInitialized = PlayerPrefs.GetInt(OwnershipInitializedKey, 0) == 1,
                 Gold = Mathf.Max(0, PlayerPrefs.GetInt(GoldKey, 0)),
                 UpgradeLevel = Mathf.Max(0, PlayerPrefs.GetInt(UpgradeKey, 0)),
+                ProtagonistBattleCommandLevel = Mathf.Max(0, PlayerPrefs.GetInt(ProtagonistBattleCommandKey, 0)),
+                ProtagonistSpiritHasteLevel = Mathf.Clamp(savedSpiritHasteLevel, 0, IdleBattlePrototype.MaximumSpiritHasteLevel),
+                SpiritUpgradeStones = Mathf.Max(0, PlayerPrefs.GetInt(SpiritUpgradeStonesKey, 0)),
+                EnhancementStones = Mathf.Max(0, PlayerPrefs.GetInt(EnhancementStonesKey, 0)),
+                SpiritAttackTrainingLevel = Mathf.Max(0, PlayerPrefs.GetInt(SpiritAttackTrainingKey, 0)),
+                SpiritDefenseTrainingLevel = Mathf.Max(0, PlayerPrefs.GetInt(SpiritDefenseTrainingKey, 0)),
+                SpiritAttackSpeedTrainingLevel = Mathf.Max(0, PlayerPrefs.GetInt(SpiritAttackSpeedTrainingKey, 0)),
+                SpiritMaximumHealthTrainingLevel = Mathf.Max(0, PlayerPrefs.GetInt(SpiritMaximumHealthTrainingKey, 0)),
+                SpiritCriticalChanceTrainingLevel = Mathf.Max(0, PlayerPrefs.GetInt(SpiritCriticalChanceTrainingKey, 0)),
+                SpiritCriticalDamageTrainingLevel = Mathf.Max(0, PlayerPrefs.GetInt(SpiritCriticalDamageTrainingKey, 0)),
                 ProtagonistLevel = Mathf.Max(1, PlayerPrefs.GetInt(ProtagonistLevelKey, 1)),
                 ProtagonistExperience = Mathf.Max(0, PlayerPrefs.GetInt(ProtagonistExperienceKey, 0)),
                 ArcaLevel = Mathf.Max(1, PlayerPrefs.GetInt(ArcaLevelKey, 1)),
                 ArcaExperience = Mathf.Max(0, PlayerPrefs.GetInt(ArcaExperienceKey, 0))
             };
+            if (savedSpiritHasteLevel > IdleBattlePrototype.MaximumSpiritHasteLevel)
+            {
+                long refund = 0;
+                for (int level = IdleBattlePrototype.MaximumSpiritHasteLevel; level < savedSpiritHasteLevel; level++)
+                    refund += 100L + level * 75L;
+                data.Gold = (int)Math.Min(int.MaxValue, data.Gold + refund);
+            }
             foreach (PrototypeSpiritData spirit in PrototypeSpiritCatalog.GetAll())
             {
                 bool isLegacyArca = spirit.Id == "arca" && !PlayerPrefs.HasKey(GetSpiritLevelKey(spirit.Id));
@@ -69,9 +100,21 @@ namespace SpiritStone.Prototype
                     SpiritId = spirit.Id,
                     Level = Mathf.Clamp(PlayerPrefs.GetInt(GetSpiritBreakthroughKey(spirit.Id), 0), 0, 6)
                 });
+                data.SpiritSpecialGrowth.Add(new PrototypeSpiritSpecialGrowthData
+                {
+                    SpiritId = spirit.Id,
+                    SkillPowerLevel = Mathf.Clamp(PlayerPrefs.GetInt(GetSpiritSkillPowerKey(spirit.Id), 0), 0, PrototypeSpiritSpecialGrowthSystem.MaximumLevel),
+                    CooldownReductionLevel = Mathf.Clamp(PlayerPrefs.GetInt(GetSpiritCooldownReductionKey(spirit.Id), 0), 0, PrototypeSpiritSpecialGrowthSystem.MaximumLevel)
+                });
             }
             for (int index = 0; index < DefaultFormation.Length; index++)
                 data.FormationSpiritIds.Add(PlayerPrefs.GetString(GetFormationSlotKey(index), DefaultFormation[index]));
+            int historyCount = Mathf.Clamp(PlayerPrefs.GetInt(SummonHistoryCountKey, 0), 0, PrototypeSummonSystem.MaximumHistoryCount);
+            for (int index = 0; index < historyCount; index++)
+            {
+                string spiritId = PlayerPrefs.GetString(GetSummonHistoryKey(index), string.Empty);
+                if (!string.IsNullOrWhiteSpace(spiritId)) data.SummonHistoryIds.Add(spiritId);
+            }
             return data;
         }
 
@@ -105,6 +148,16 @@ namespace SpiritStone.Prototype
             PlayerPrefs.SetInt(OwnershipInitializedKey, 1);
             PlayerPrefs.SetInt(GoldKey, Mathf.Max(0, data.Gold));
             PlayerPrefs.SetInt(UpgradeKey, Mathf.Max(0, data.UpgradeLevel));
+            PlayerPrefs.SetInt(ProtagonistBattleCommandKey, Mathf.Max(0, data.ProtagonistBattleCommandLevel));
+            PlayerPrefs.SetInt(ProtagonistSpiritHasteKey, Mathf.Clamp(data.ProtagonistSpiritHasteLevel, 0, IdleBattlePrototype.MaximumSpiritHasteLevel));
+            PlayerPrefs.SetInt(SpiritUpgradeStonesKey, Mathf.Max(0, data.SpiritUpgradeStones));
+            PlayerPrefs.SetInt(EnhancementStonesKey, Mathf.Max(0, data.EnhancementStones));
+            PlayerPrefs.SetInt(SpiritAttackTrainingKey, Mathf.Max(0, data.SpiritAttackTrainingLevel));
+            PlayerPrefs.SetInt(SpiritDefenseTrainingKey, Mathf.Max(0, data.SpiritDefenseTrainingLevel));
+            PlayerPrefs.SetInt(SpiritAttackSpeedTrainingKey, Mathf.Max(0, data.SpiritAttackSpeedTrainingLevel));
+            PlayerPrefs.SetInt(SpiritMaximumHealthTrainingKey, Mathf.Max(0, data.SpiritMaximumHealthTrainingLevel));
+            PlayerPrefs.SetInt(SpiritCriticalChanceTrainingKey, Mathf.Max(0, data.SpiritCriticalChanceTrainingLevel));
+            PlayerPrefs.SetInt(SpiritCriticalDamageTrainingKey, Mathf.Max(0, data.SpiritCriticalDamageTrainingLevel));
             PlayerPrefs.SetInt(ProtagonistLevelKey, Mathf.Max(1, data.ProtagonistLevel));
             PlayerPrefs.SetInt(ProtagonistExperienceKey, Mathf.Max(0, data.ProtagonistExperience));
             PlayerPrefs.SetInt(ArcaLevelKey, Mathf.Max(1, data.ArcaLevel));
@@ -132,6 +185,20 @@ namespace SpiritStone.Prototype
                 if (breakthrough == null || string.IsNullOrWhiteSpace(breakthrough.SpiritId)) continue;
                 PlayerPrefs.SetInt(GetSpiritBreakthroughKey(breakthrough.SpiritId), Mathf.Clamp(breakthrough.Level, 0, 6));
             }
+            for (int index = 0; index < data.SpiritSpecialGrowth.Count; index++)
+            {
+                PrototypeSpiritSpecialGrowthData growth = data.SpiritSpecialGrowth[index];
+                if (growth == null || string.IsNullOrWhiteSpace(growth.SpiritId)) continue;
+                PlayerPrefs.SetInt(GetSpiritSkillPowerKey(growth.SpiritId), Mathf.Clamp(growth.SkillPowerLevel, 0, PrototypeSpiritSpecialGrowthSystem.MaximumLevel));
+                PlayerPrefs.SetInt(GetSpiritCooldownReductionKey(growth.SpiritId), Mathf.Clamp(growth.CooldownReductionLevel, 0, PrototypeSpiritSpecialGrowthSystem.MaximumLevel));
+            }
+            int previousHistoryCount = Mathf.Clamp(PlayerPrefs.GetInt(SummonHistoryCountKey, 0), 0, PrototypeSummonSystem.MaximumHistoryCount);
+            int historyCount = Mathf.Min(data.SummonHistoryIds.Count, PrototypeSummonSystem.MaximumHistoryCount);
+            PlayerPrefs.SetInt(SummonHistoryCountKey, historyCount);
+            for (int index = 0; index < historyCount; index++)
+                PlayerPrefs.SetString(GetSummonHistoryKey(index), data.SummonHistoryIds[index] ?? string.Empty);
+            for (int index = historyCount; index < previousHistoryCount; index++)
+                PlayerPrefs.DeleteKey(GetSummonHistoryKey(index));
             SaveLastActiveUtc(lastActiveUtc, false);
             PlayerPrefs.Save();
         }
@@ -153,5 +220,11 @@ namespace SpiritStone.Prototype
         private static string GetSpiritShardKey(string spiritId) => $"{SpiritShardKeyPrefix}{spiritId}";
 
         private static string GetSpiritBreakthroughKey(string spiritId) => $"{SpiritBreakthroughKeyPrefix}{spiritId}";
+
+        private static string GetSpiritSkillPowerKey(string spiritId) => $"{SpiritSpecialGrowthKeyPrefix}{spiritId}.SkillPower";
+
+        private static string GetSpiritCooldownReductionKey(string spiritId) => $"{SpiritSpecialGrowthKeyPrefix}{spiritId}.CooldownReduction";
+
+        private static string GetSummonHistoryKey(int index) => $"{SummonHistoryKeyPrefix}{index}";
     }
 }

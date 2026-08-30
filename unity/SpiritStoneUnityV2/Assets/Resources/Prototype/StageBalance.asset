@@ -13,14 +13,18 @@ MonoBehaviour:
   m_Name: StageBalance
   m_EditorClassIdentifier: Assembly-CSharp::SpiritStone.Prototype.PrototypeStageBalanceDefinition
   baseHealth: 45
-  healthPerStage: 16
-  healthPerWave: 9
+  healthGrowthPerStage: 0.023
+  healthGrowthPerWave: 0.03
   baseDamage: 5
-  damagePerStage: 1.5
-  damagePerWave: 0.4
+  damageGrowthPerStage: 0.012
+  damageGrowthPerWave: 0.035
   baseGold: 8
-  goldPerStage: 3
-  goldPerWave: 2
+  goldGrowthPerStage: 0.025
+  goldGrowthPerWave: 0.05
   baseExperience: 7
-  experiencePerStage: 2
-  experiencePerWave: 1
+  experienceGrowthPerStage: 0.02
+  experienceGrowthPerWave: 0.04
+  clearGoldBase: 40
+  clearGoldPerStage: 15
+  clearExperienceBase: 25
+  clearExperiencePerStage: 5

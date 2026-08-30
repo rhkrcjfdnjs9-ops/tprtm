@@ -9,14 +9,18 @@ namespace SpiritStone.Prototype
         public const int SummonCost = 100;
         public const int MaximumBreakthrough = 6;
         public const int CommonShardExchangeCost = 2;
+        public const int MaximumHistoryCount = 100;
 
         private readonly HashSet<string> ownedSpiritIds = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, int> spiritShards = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, int> spiritBreakthroughs = new(StringComparer.OrdinalIgnoreCase);
+        private readonly List<string> summonHistoryIds = new();
 
         public int SpiritStones { get; private set; }
         public int SsrCommonShards { get; private set; }
         public bool CanSummon => SpiritStones >= SummonCost;
+        public bool CanSummonTen => SpiritStones >= SummonCost * 10;
+        public IReadOnlyList<string> SummonHistoryIds => summonHistoryIds;
 
         public void Initialize(PrototypeSaveData saveData)
         {
@@ -25,6 +29,7 @@ namespace SpiritStone.Prototype
             ownedSpiritIds.Clear();
             spiritShards.Clear();
             spiritBreakthroughs.Clear();
+            summonHistoryIds.Clear();
 
             foreach (string spiritId in saveData.OwnedSpiritIds)
                 if (!string.IsNullOrWhiteSpace(spiritId)) ownedSpiritIds.Add(spiritId);
@@ -37,6 +42,11 @@ namespace SpiritStone.Prototype
             foreach (PrototypeSpiritBreakthroughData breakthrough in saveData.SpiritBreakthroughs)
                 if (breakthrough != null && !string.IsNullOrWhiteSpace(breakthrough.SpiritId))
                     spiritBreakthroughs[breakthrough.SpiritId] = Mathf.Clamp(breakthrough.Level, 0, MaximumBreakthrough);
+            foreach (string spiritId in saveData.SummonHistoryIds)
+            {
+                if (summonHistoryIds.Count >= MaximumHistoryCount) break;
+                if (!string.IsNullOrWhiteSpace(spiritId)) summonHistoryIds.Add(spiritId);
+            }
         }
 
         public bool IsOwned(string spiritId) => !string.IsNullOrWhiteSpace(spiritId) && ownedSpiritIds.Contains(spiritId);
@@ -45,15 +55,31 @@ namespace SpiritStone.Prototype
 
         public bool TrySpendSummonCost()
         {
-            if (!CanSummon) return false;
-            SpiritStones -= SummonCost;
+            return TrySpendSummonCost(1);
+        }
+
+        public bool TrySpendSummonCost(int summonCount)
+        {
+            if (summonCount <= 0) return false;
+            long cost = (long)SummonCost * summonCount;
+            if (cost > int.MaxValue || SpiritStones < cost) return false;
+            SpiritStones -= (int)cost;
             return true;
         }
 
         public bool RegisterSummon(PrototypeSpiritData spirit, out bool convertedToCommonShard)
         {
+            if (spirit == null) throw new ArgumentNullException(nameof(spirit));
+            summonHistoryIds.Insert(0, spirit.Id);
+            if (summonHistoryIds.Count > MaximumHistoryCount)
+                summonHistoryIds.RemoveRange(MaximumHistoryCount, summonHistoryIds.Count - MaximumHistoryCount);
             convertedToCommonShard = false;
-            if (ownedSpiritIds.Add(spirit.Id)) return true;
+            if (ownedSpiritIds.Add(spirit.Id))
+            {
+                spiritShards.Remove(spirit.Id);
+                spiritBreakthroughs.Remove(spirit.Id);
+                return true;
+            }
             if (GetBreakthrough(spirit.Id) >= MaximumBreakthrough)
             {
                 SsrCommonShards++;
@@ -67,6 +93,13 @@ namespace SpiritStone.Prototype
         }
 
         public bool CanBreakthrough(string spiritId) => IsOwned(spiritId) && GetBreakthrough(spiritId) < MaximumBreakthrough && GetShards(spiritId) > 0;
+
+        public bool TrySpendShard(string spiritId)
+        {
+            if (!IsOwned(spiritId) || GetShards(spiritId) <= 0) return false;
+            spiritShards[spiritId] = GetShards(spiritId) - 1;
+            return true;
+        }
 
         public int Breakthrough(string spiritId)
         {
@@ -107,6 +140,7 @@ namespace SpiritStone.Prototype
                 saveData.SpiritShards.Add(new PrototypeSpiritShardData { SpiritId = shard.Key, Amount = shard.Value });
             foreach (KeyValuePair<string, int> breakthrough in spiritBreakthroughs)
                 saveData.SpiritBreakthroughs.Add(new PrototypeSpiritBreakthroughData { SpiritId = breakthrough.Key, Level = breakthrough.Value });
+            saveData.SummonHistoryIds.AddRange(summonHistoryIds);
         }
     }
 }

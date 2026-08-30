@@ -18,7 +18,8 @@ namespace SpiritStone.Prototype
                 assignedIds.Add(savedId);
                 Slots[index].Assign(PrototypeSpiritCatalog.GetRequired(savedId), InitialCooldown(index));
             }
-            if (!assignedIds.Contains("arca")) Slots[0].Assign(PrototypeSpiritCatalog.GetRequired("arca"), InitialCooldown(0));
+            if (saveData.FormationSpiritIds.Count == 0 && assignedIds.Count == 0 && summonSystem.IsOwned("arca"))
+                Slots[0].Assign(PrototypeSpiritCatalog.GetRequired("arca"), InitialCooldown(0));
         }
 
         public PrototypeSpiritData Cycle(int slotIndex, PrototypeSummonSystem summonSystem)
@@ -49,6 +50,40 @@ namespace SpiritStone.Prototype
             else if (occupiedIndex >= 0 && occupiedIndex != slotIndex)
                 Slots[occupiedIndex].Clear();
             return nextSpirit;
+        }
+
+        public bool Assign(int slotIndex, string spiritId, PrototypeSummonSystem summonSystem)
+        {
+            if (Slots == null || slotIndex < 0 || slotIndex >= Slots.Length || !summonSystem.IsOwned(spiritId)) return false;
+            PrototypeSpiritData nextSpirit;
+            try
+            {
+                nextSpirit = PrototypeSpiritCatalog.GetRequired(spiritId);
+            }
+            catch (ArgumentException)
+            {
+                return false;
+            }
+            if (Slots[slotIndex].SpiritId.Equals(spiritId, StringComparison.OrdinalIgnoreCase)) return false;
+
+            int occupiedIndex = Array.FindIndex(Slots, slot => slot.SpiritId.Equals(spiritId, StringComparison.OrdinalIgnoreCase));
+            PrototypeSpiritData previousSpirit = Slots[slotIndex].Spirit;
+            Slots[slotIndex].Assign(nextSpirit, InitialCooldown(slotIndex));
+            if (occupiedIndex >= 0 && occupiedIndex != slotIndex)
+            {
+                if (previousSpirit != null) Slots[occupiedIndex].Assign(previousSpirit, InitialCooldown(occupiedIndex));
+                else Slots[occupiedIndex].Clear();
+            }
+            return true;
+        }
+
+        public bool Unassign(int slotIndex)
+        {
+            if (Slots == null || slotIndex < 0 || slotIndex >= Slots.Length) return false;
+            PrototypeSpiritSlot slot = Slots[slotIndex];
+            if (!slot.IsAssigned || slot.IsActing) return false;
+            slot.Clear();
+            return true;
         }
 
         public void WriteTo(PrototypeSaveData saveData)

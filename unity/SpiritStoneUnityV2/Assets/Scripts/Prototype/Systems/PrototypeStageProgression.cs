@@ -27,10 +27,19 @@ namespace SpiritStone.Prototype
             return true;
         }
 
+        public bool TryPreview(int requestedStage)
+        {
+            int selected = Mathf.Max(1, requestedStage);
+            if (selected == Stage) return false;
+            Stage = selected;
+            return true;
+        }
+
         public void CompleteStage()
         {
             HighestClearedStage = Mathf.Max(HighestClearedStage, Stage);
-            Stage = IsAutoChallengeEnabled ? HighestClearedStage + 1 : HighestClearedStage;
+            if (IsAutoChallengeEnabled)
+                Stage = Mathf.Min(Stage + 1, HighestClearedStage + 1);
         }
 
         public bool ReturnFromFailedBossChallenge()

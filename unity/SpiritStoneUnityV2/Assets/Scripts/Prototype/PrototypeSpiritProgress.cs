@@ -22,6 +22,12 @@ namespace SpiritStone.Prototype
             return Normalize();
         }
 
+        public void Reset()
+        {
+            Level = 1;
+            Experience = 0;
+        }
+
         public PrototypeSpiritProgressData CreateSaveData()
         {
             return new PrototypeSpiritProgressData { SpiritId = SpiritId, Level = Level, Experience = Experience };

@@ -25,6 +25,11 @@ namespace SpiritStone.Prototype
                 : null;
         }
 
+        public void Reset(string spiritId)
+        {
+            Get(spiritId)?.Reset();
+        }
+
         public void WriteTo(PrototypeSaveData saveData)
         {
             foreach (PrototypeSpiritProgress progress in progressById.Values)

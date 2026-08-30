@@ -71,15 +71,15 @@ namespace SpiritStone.Prototype
             AttackCooldownRemaining = Math.Max(0.01f, duration);
         }
 
-        public void BeginSkillOne()
+        public void BeginSkillOne(float cooldownMultiplier = 1f)
         {
-            SkillOneCooldownRemaining = Math.Max(0.01f, Spirit.SkillOne.Cooldown);
+            SkillOneCooldownRemaining = Math.Max(0.01f, Spirit.SkillOne.Cooldown * cooldownMultiplier);
             SkillOneRemaining = Math.Max(0f, Spirit.SkillOne.Duration);
         }
 
-        public void BeginSkillTwo()
+        public void BeginSkillTwo(float cooldownMultiplier = 1f)
         {
-            SkillTwoCooldownRemaining = Math.Max(0.01f, Spirit.SkillTwo.Cooldown);
+            SkillTwoCooldownRemaining = Math.Max(0.01f, Spirit.SkillTwo.Cooldown * cooldownMultiplier);
             SkillTwoRemaining = Math.Max(0f, Spirit.SkillTwo.Duration);
         }
 

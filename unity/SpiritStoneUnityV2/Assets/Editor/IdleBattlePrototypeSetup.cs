@@ -3,6 +3,7 @@ using SpiritStone.Prototype;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.U2D;
 using UnityEngine.SceneManagement;
 
 namespace SpiritStone.EditorTools
@@ -29,6 +30,12 @@ namespace SpiritStone.EditorTools
             camera.backgroundColor = new Color(0.035f, 0.04f, 0.075f);
             camera.clearFlags = CameraClearFlags.SolidColor;
             cameraObject.transform.position = new Vector3(0f, 0f, -10f);
+            PixelPerfectCamera pixelPerfectCamera = cameraObject.AddComponent<PixelPerfectCamera>();
+            pixelPerfectCamera.assetsPPU = 32;
+            pixelPerfectCamera.refResolutionX = 216;
+            pixelPerfectCamera.refResolutionY = 384;
+            pixelPerfectCamera.upscaleRT = true;
+            pixelPerfectCamera.pixelSnapping = true;
 
             GameObject lightObject = new("Directional Light");
             lightObject.AddComponent<Light>().type = LightType.Directional;

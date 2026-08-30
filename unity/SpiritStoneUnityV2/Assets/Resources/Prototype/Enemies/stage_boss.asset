@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 91e8f21d761a5b446822e06e0a58ca2d, type: 3}
+  m_Name: stage_boss
+  m_EditorClassIdentifier: Assembly-CSharp::SpiritStone.Prototype.PrototypeEnemyDefinition
+  id: stage_boss
+  displayName: "\uC2A4\uD14C\uC774\uC9C0 \uBCF4\uC2A4"
+  archetype: 3
+  isBoss: 1
+  rotationOrder: 0
+  healthMultiplier: 5
+  damageMultiplier: 1.8
+  attackInterval: 1.35
+  rewardMultiplier: 2
+  displayColor: {r: 0.72, g: 0.08, b: 0.18, a: 1}

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace SpiritStone.Prototype
@@ -40,7 +41,18 @@ namespace SpiritStone.Prototype
                 new PrototypeSpiritEvolutionMilestone(10, SpiritEvolutionStage.SpiritStoneTwo, "정령돌 2단계", 1.15f, new Color(0.12f, 0.55f, 0.72f)),
                 new PrototypeSpiritEvolutionMilestone(20, SpiritEvolutionStage.SpiritStoneThree, "정령돌 3단계", 1.35f, new Color(0.1f, 0.7f, 0.85f)),
                 new PrototypeSpiritEvolutionMilestone(30, SpiritEvolutionStage.Liberated, "정령 해방", 1.7f, new Color(0.22f, 0.82f, 1f)),
-                new PrototypeSpiritEvolutionMilestone(50, SpiritEvolutionStage.Awakened, "정령 각성", 2.3f, new Color(0.62f, 0.94f, 1f)))
+                new PrototypeSpiritEvolutionMilestone(50, SpiritEvolutionStage.Awakened, "정령 각성", 2.3f, new Color(0.62f, 0.94f, 1f))),
+            ["windy"] = new PrototypeSpiritData(
+                "windy", "윈디", PrototypeSpiritRarity.SSR, SpiritElement.Wind, SpiritCombatRole.Support, 12f, 1.15f,
+                new PrototypeSpiritAbilityData("breeze_orb", "산들바람", 0f, 1f, 0f, 14f),
+                new PrototypeSpiritAbilityData("wind_whisper", "바람의 속삭임", 7f, 0.2f, 0f, 20f, SpiritAbilityEffect.HealAll),
+                new PrototypeSpiritAbilityData("tailwind_blessing", "순풍의 가호", 11f, 0.78f, 5f, 16f, SpiritAbilityEffect.AttackSpeedBuff),
+                new PrototypeSpiritAbilityData("storm_sanctuary", "폭풍의 성역", 0f, 1.35f, 6f, 0f, SpiritAbilityEffect.TeamAttackPowerBuff), 100f,
+                new PrototypeSpiritEvolutionMilestone(1, SpiritEvolutionStage.SpiritStoneOne, "정령돌 1단계", 1f, new Color(0.2f, 0.48f, 0.32f)),
+                new PrototypeSpiritEvolutionMilestone(10, SpiritEvolutionStage.SpiritStoneTwo, "정령돌 2단계", 1.15f, new Color(0.28f, 0.68f, 0.42f)),
+                new PrototypeSpiritEvolutionMilestone(20, SpiritEvolutionStage.SpiritStoneThree, "정령돌 3단계", 1.35f, new Color(0.35f, 0.85f, 0.55f)),
+                new PrototypeSpiritEvolutionMilestone(30, SpiritEvolutionStage.Liberated, "정령 해방", 1.7f, new Color(0.55f, 1f, 0.72f)),
+                new PrototypeSpiritEvolutionMilestone(50, SpiritEvolutionStage.Awakened, "정령 각성", 2.3f, new Color(0.82f, 1f, 0.9f)))
         };
         private static Dictionary<string, PrototypeSpiritData> loadedSpirits;
 
@@ -49,7 +61,8 @@ namespace SpiritStone.Prototype
         private static Dictionary<string, PrototypeSpiritData> LoadSpirits()
         {
             PrototypeSpiritDefinition[] definitions = Resources.LoadAll<PrototypeSpiritDefinition>("Prototype/Spirits");
-            if (definitions.Length == 0) return FallbackSpirits;
+            if (definitions.Length == 0)
+                throw new InvalidOperationException("No spirit definition assets were found in Resources/Prototype/Spirits.");
             Dictionary<string, PrototypeSpiritData> result = new(StringComparer.OrdinalIgnoreCase);
             for (int index = 0; index < definitions.Length; index++)
             {
@@ -71,7 +84,13 @@ namespace SpiritStone.Prototype
 
         public static IEnumerable<PrototypeSpiritData> GetAll()
         {
-            return Spirits.Values;
+            return Spirits.Values.OrderBy(spirit => spirit.Id, StringComparer.OrdinalIgnoreCase);
+        }
+
+        public static void Reload()
+        {
+            loadedSpirits = null;
+            _ = Spirits.Count;
         }
 
         public static IEnumerable<PrototypeSpiritData> GetBuiltInDefaults()

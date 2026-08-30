@@ -30,9 +30,20 @@ namespace SpiritStone.Prototype
             AliveCount = count;
         }
 
-        public void ApplyDamage(float totalDamage, int maximumTargets)
+        public float TotalHealth
+        {
+            get
+            {
+                float total = 0f;
+                for (int index = 0; index < health.Length; index++) total += health[index];
+                return total;
+            }
+        }
+
+        public float ApplyDamage(float totalDamage, int maximumTargets)
         {
             float remainingDamage = Mathf.Max(0f, totalDamage);
+            float appliedDamage = 0f;
             int targetsRemaining = Mathf.Clamp(maximumTargets, 1, Mathf.Max(1, AliveCount));
             int searchIndex = 0;
             while (remainingDamage > 0f && targetsRemaining > 0)
@@ -43,6 +54,7 @@ namespace SpiritStone.Prototype
                 float applied = Mathf.Min(health[targetIndex], share);
                 health[targetIndex] -= applied;
                 remainingDamage -= applied;
+                appliedDamage += applied;
                 targetsRemaining--;
                 searchIndex = targetIndex + 1;
                 if (health[targetIndex] <= 0f) AliveCount--;
@@ -54,8 +66,10 @@ namespace SpiritStone.Prototype
                 float applied = Mathf.Min(health[targetIndex], remainingDamage);
                 health[targetIndex] -= applied;
                 remainingDamage -= applied;
+                appliedDamage += applied;
                 if (health[targetIndex] <= 0f) AliveCount--;
             }
+            return appliedDamage;
         }
 
         public bool IsAlive(int index) => index >= 0 && index < health.Length && health[index] > 0f;

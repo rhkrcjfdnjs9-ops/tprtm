@@ -1,0 +1,35 @@
+{
+  "characterId": "arca",
+  "version": 1,
+  "canvas": { "width": 64, "height": 64 },
+  "rendering": {
+    "filterMode": "Point",
+    "compression": "None",
+    "mipMaps": false,
+    "pixelsPerUnit": 64,
+    "antiAliasing": false,
+    "subPixelPlacement": false
+  },
+  "orientation": "front_three_quarter_facing_right",
+  "bounds": { "left": 13, "top": 4, "right": 54, "bottom": 61 },
+  "anchors": {
+    "characterOrigin": { "x": 32, "y": 61 },
+    "headCenter": { "x": 32, "y": 22 },
+    "torsoCenter": { "x": 32, "y": 39 },
+    "leftHand": { "x": 16, "y": 43 },
+    "rightHand": { "x": 50, "y": 41 },
+    "leftFoot": { "x": 25, "y": 61 },
+    "rightFoot": { "x": 39, "y": 61 },
+    "coreLeft": { "x": 10, "y": 31 },
+    "coreRight": { "x": 55, "y": 29 },
+    "coreTop": { "x": 32, "y": 0 }
+  },
+  "animationLocks": {
+    "headWidth": 39,
+    "headHeight": 33,
+    "bodyWidth": 42,
+    "feetBaselineY": 61,
+    "defaultPivotNormalized": { "x": 0.5, "y": 0.03125 },
+    "scale": { "x": 1, "y": 1, "z": 1 }
+  }
+}

@@ -32,6 +32,28 @@ These instructions are the project-level source of truth for Codex work in this 
 - Prefer `[SerializeField] private` references for scene dependencies. Validate required references and fail with a clear component-prefixed error.
 - Do not change runtime Transform scale to animate impact or movement unless the design explicitly requires it. Preserve character scale at `(1,1,1)`.
 
+## Pixel art and rendering source of truth
+
+- Apply the production-document priority in this exact order:
+  1. `../../Docs/Unity_2D_Pixel_Art_Game_Project_Art_Rendering_Standard_v1.0.md`
+  2. `../../Docs/Unity_64x64_Pixel_Character_Production_Specification.md`
+  3. `../../Docs/AI_Character_Animation_Pipeline.md`
+  4. `../../Docs/AI_Pixel_Character_Animation_Pipeline.md`
+  5. Individual character and animation settings
+- Treat `../../Docs/Unity_2D_Pixel_Art_Game_Project_Art_Rendering_Standard_v1.0.md` as the project-wide art and rendering source of truth.
+- Treat `../../Docs/AI_Character_Animation_Pipeline.md` as the character-identity, Blender rigging, animation-render, ComfyUI conversion, and Unity-delivery pipeline source of truth.
+- Treat `../../Docs/AI_Pixel_Character_Animation_Pipeline.md` as the AI motion-generation and sprite-sheet pipeline source of truth. AI output is motion reference material only until it is normalized to the 64x64 master grid and passes the document's QC gates.
+- Maintain one immutable Character Master and one reusable 3D character/rig per character. Do not regenerate the character with ImageGen for each animation; ImageGen motion variants are reference drafts only and cannot become production assets directly.
+- Build production motion through the verified sequence `Character Master -> reusable 3D character/rig -> Blender animation -> PNG sequence -> deterministic ComfyUI pixel conversion -> 64x64 cleanup -> sprite sheet -> Unity`.
+- Validate each pipeline stage before connecting the next stage. If the new pipeline conflicts with current project assets or runtime systems, report the concrete conflict before changing them.
+- Use a 16 px base grid, 32x32 main tiles, 16x16 detail tiles, and 64x64 standard character canvases.
+- Use PPU 32 for every runtime pixel-art sprite. Do not assign a different PPU to an individual runtime asset.
+- Use Point filtering, mipmaps off, compression none, clamp wrapping, integer/pixel-aligned placement, and Bottom Center pivots for character frames.
+- Use the Pixel Perfect Camera with Assets PPU 32 and one fixed reference resolution.
+- Do not treat ImageGen output or a downscaled illustration as production pixel art until it passes exact pixel-grid, alpha, palette, baseline, pivot, and import-setting validation.
+- Keep every character animation frame on a 64x64 canvas with a common foot baseline and pivot. Use Unity Animator for Idle, Walk, Attack, Hit, and Death states.
+- Keep runtime sprites separate from source, concept, and enlarged preview images; only runtime sprites belong in gameplay atlases.
+
 ## Naming and code style
 
 - Namespaces: `SpiritStone.<Feature>`.
