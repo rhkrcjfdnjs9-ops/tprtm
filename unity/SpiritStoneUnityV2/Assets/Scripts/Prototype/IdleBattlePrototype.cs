@@ -153,7 +153,7 @@ namespace SpiritStone.Prototype
         public float TeamShield => teamShield;
         public float UltimateEnergy => arcaSlot?.UltimateEnergy ?? 0f;
         public float UltimateEnergyMaximum => arcaSpirit?.UltimateEnergyMaximum ?? 1f;
-        public float ChainLightningCooldownRemaining => arcaSlot?.SkillOneCooldownRemaining ?? 0f;
+        public float LightningOrbCooldownRemaining => arcaSlot?.SkillOneCooldownRemaining ?? 0f;
         public float OverchargeCooldownRemaining => arcaSlot?.SkillTwoCooldownRemaining ?? 0f;
         public float OverchargeRemaining => arcaSlot?.SkillTwoRemaining ?? 0f;
         public float BattleCommandCooldownRemaining => Mathf.Max(0f, battleCommandTimer);
@@ -924,7 +924,7 @@ namespace SpiritStone.Prototype
             if (slot.Spirit.CombatRole == SpiritCombatRole.MeleeAttack)
                 yield return MeleeStrikeRoutine(visual, 0.55f);
             else if (slot == arcaSlot)
-                yield return combatVfxSystem.PlayArcaChainLightning(arcaCoreVisuals, visual,
+                yield return combatVfxSystem.PlayArcaLightningOrb(arcaCoreVisuals, visual,
                     GetAliveEnemyVisuals(slot.Spirit.SkillOne.MaximumTargets));
             else
                 yield return MoveProjectile(visual, Color.Lerp(GetElementColor(slot.Spirit.Element), Color.white, 0.35f), new Vector3(0.85f, 0.16f, 1f), projectileDuration * 0.75f);
@@ -1072,11 +1072,12 @@ namespace SpiritStone.Prototype
                     break;
             }
 
-            if (slot.SpiritId == "arca" && ability.Id == "chain_lightning")
+            if (slot.SpiritId == "arca" && ability.Id == "lightning_orb")
             {
                 combatStatusSystem.Apply(PrototypeCombatStatusType.Stun, PrototypeCombatStatusTarget.Enemy,
-                    string.Empty, ability.Id, 1f, 0.65f);
-                combatVfxSystem?.PlayStatus(enemy, PrototypeCombatStatusType.Stun);
+                    string.Empty, ability.Id, 1f, 1.5f);
+                foreach (Transform target in GetAliveEnemyVisuals(ability.MaximumTargets))
+                    combatVfxSystem?.PlayStatus(target, PrototypeCombatStatusType.Stun);
             }
             else if (slot.SpiritId == "ignis" && ability.Id == "blazing_charge")
             {

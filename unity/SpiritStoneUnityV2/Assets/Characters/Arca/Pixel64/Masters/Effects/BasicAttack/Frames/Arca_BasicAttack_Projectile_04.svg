@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" shape-rendering="crispEdges">
+  <title>Arca Basic Attack Projectile Master</title>
+  <desc>64x64 lightning needle master. Integer-coordinate silhouette is 31x15 pixels and travels east.</desc>
+
+  <g id="projectile-half-scale" transform="translate(16 16) scale(0.5)">
+  <g id="outer-outline" fill="#32084f">
+    <path d="M21 26h8v-2h6v2h5v2h4v2h4v1h3v3h-3v1h-4v2h-5v2h-5v1h-7v-2h-6v-2h-5v-2h-2v-3h3v-3h4z"/>
+    <path d="M14 27h5v2h5v3h-7v-2h-3z"/>
+    <path d="M13 35h4v-2h7v3h-5v2h-6z"/>
+  </g>
+
+  <g id="violet-energy" fill="#7619c2">
+    <path d="M22 28h7v-2h5v2h5v2h5v2h4v1h-5v2h-5v2h-5v1h-5v-2h-6v-2h-4v-3h4z"/>
+    <path d="M16 28h4v2h6v2h-5v-1h-5z"/>
+    <path d="M15 35h5v-2h6v2h-5v2h-6z"/>
+  </g>
+
+  <g id="light-energy" fill="#d27aff">
+    <path d="M25 29h6v-2h3v2h5v2h5v1h3v1h-5v2h-5v2h-5v-2h-6v-2h-4v-2h3z"/>
+  </g>
+
+  <g id="white-core" fill="#ffffff">
+    <path d="M29 30h5v-1h3v2h5v1h6v1h-7v2h-5v1h-4v-2h-5v-2h2z"/>
+    <path d="M47 31h3v3h-3z"/>
+  </g>
+
+  <g id="lightning-cut" fill="#32084f">
+    <path d="M34 28h3l-2 3h3l-5 5 1-3h-3z"/>
+  </g>
+  </g>
+<g transform="translate(16 16) scale(0.5)"><g id="motion"><path fill="#d27aff" d="M14 26h4v2h-4zM12 34h5v2h-5z"/><path fill="#ffffff" d="M33 31h4v3h-4z"/></g></g>
+</svg>

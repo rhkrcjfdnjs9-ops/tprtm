@@ -775,7 +775,7 @@ namespace SpiritStone.Prototype
             enemyTargetsText.text = $"{GetEnemyTargetSummary()}  ·  {battle.StageReadinessLabel}";
             SetBar(ultimateFill, ultimateText, battle.UltimateEnergy, battle.UltimateEnergyMaximum, "아르카 궁극기");
             string overcharge = battle.OverchargeRemaining > 0f ? $"과충전 {battle.OverchargeRemaining:0.0}초" : $"과충전 대기 {battle.OverchargeCooldownRemaining:0.0}초";
-            skillText.text = $"연쇄 번개 {battle.ChainLightningCooldownRemaining:0.0}초  ·  {overcharge}";
+            skillText.text = $"라이트닝 오브 {battle.LightningOrbCooldownRemaining:0.0}초  ·  {overcharge}";
             string command = battle.BattleCommandRemaining > 0f ? $"전투 지휘 {battle.BattleCommandRemaining:0.0}초" : $"전투 지휘 대기 {battle.BattleCommandCooldownRemaining:0.0}초";
             string haste = battle.SpiritHasteRemaining > 0f ? $"정령 가속 {battle.SpiritHasteRemaining:0.0}초" : $"정령 가속 대기 {battle.SpiritHasteCooldownRemaining:0.0}초";
             supportText.text = $"{command}  ·  {haste}\n{battle.DefenseStatus}";

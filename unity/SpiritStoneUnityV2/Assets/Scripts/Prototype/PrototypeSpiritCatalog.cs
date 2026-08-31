@@ -12,7 +12,7 @@ namespace SpiritStone.Prototype
             ["arca"] = new PrototypeSpiritData(
                 "arca", "아르카", PrototypeSpiritRarity.SSR, SpiritElement.Lightning, SpiritCombatRole.RangedAttack, 18f, 0.8f,
                 new PrototypeSpiritAbilityData("rotating_core", "회전 코어", 0f, 1f, 0f, 14f),
-                new PrototypeSpiritAbilityData("chain_lightning", "연쇄 번개", 4.5f, 2.25f, 0f, 24f, SpiritAbilityEffect.Attack, 3),
+                new PrototypeSpiritAbilityData("lightning_orb", "라이트닝 오브", 4.5f, 2.25f, 0f, 24f, SpiritAbilityEffect.Attack, 99),
                 new PrototypeSpiritAbilityData("overcharge", "과충전", 9f, 0.55f, 3f, 12f, SpiritAbilityEffect.AttackSpeedBuff),
                 new PrototypeSpiritAbilityData("lightning_judgment", "뇌광 심판", 0f, 5f, 0f, 0f), 100f,
                 new PrototypeSpiritEvolutionMilestone(1, SpiritEvolutionStage.SpiritStoneOne, "정령돌 1단계", 1f, new Color(0.32f, 0.28f, 0.42f)),

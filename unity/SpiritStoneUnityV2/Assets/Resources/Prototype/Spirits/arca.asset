@@ -29,14 +29,14 @@ MonoBehaviour:
     effect: 0
     maximumTargets: 1
   skillOne:
-    id: chain_lightning
-    displayName: "\uC5F0\uC1C4 \uBC88\uAC1C"
+    id: lightning_orb
+    displayName: "\uB77C\uC774\uD2B8\uB2DD \uC624\uBE0C"
     cooldown: 4.5
     powerMultiplier: 2.25
     duration: 0
     energyGain: 24
     effect: 0
-    maximumTargets: 3
+    maximumTargets: 99
   skillTwo:
     id: overcharge
     displayName: "\uACFC\uCDA9\uC804"
