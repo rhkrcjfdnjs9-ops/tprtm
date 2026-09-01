@@ -154,6 +154,41 @@ namespace SpiritStone.Prototype
         public float UltimateEnergy => arcaSlot?.UltimateEnergy ?? 0f;
         public float UltimateEnergyMaximum => arcaSpirit?.UltimateEnergyMaximum ?? 1f;
         public float LightningOrbCooldownRemaining => arcaSlot?.SkillOneCooldownRemaining ?? 0f;
+
+        public void PreviewArcaLightningOrbVfx()
+        {
+            if (!Application.isPlaying || combatVfxSystem == null || arca == null || arcaSlot == null)
+            {
+                Debug.LogWarningFormat("[IdleBattlePrototype] Lightning Orb preview requires an initialized Play Mode battle.");
+                return;
+            }
+
+            List<Transform> targets = GetAliveEnemyVisuals(99);
+            if (targets.Count == 0)
+            {
+                Debug.LogWarningFormat("[IdleBattlePrototype] Lightning Orb preview has no alive enemy target.");
+                return;
+            }
+
+            arcaCoreController?.PlaySkillOne(0.8f);
+            spiritPixelViews?[arcaSlot.SlotIndex]?.PlaySkill();
+            StartCoroutine(combatVfxSystem.PlayArcaLightningOrb(arcaCoreVisuals, arca, targets));
+        }
+
+        public void PreviewArcaOverchargeVfx()
+        {
+            if (!Application.isPlaying || combatVfxSystem == null || arca == null || arcaSlot == null)
+            {
+                Debug.LogWarningFormat("[IdleBattlePrototype] Overcharge preview requires an initialized Play Mode battle.");
+                return;
+            }
+
+            float duration = Mathf.Max(1.2f, arcaSlot.Spirit.SkillTwo.Duration);
+            arcaCoreController?.PlayOvercharge(duration);
+            spiritPixelViews?[arcaSlot.SlotIndex]?.PlaySkillTwo();
+            combatVfxSystem.PlayArcaOvercharge(arca, arcaCoreVisuals, duration);
+        }
+
         public float OverchargeCooldownRemaining => arcaSlot?.SkillTwoCooldownRemaining ?? 0f;
         public float OverchargeRemaining => arcaSlot?.SkillTwoRemaining ?? 0f;
         public float BattleCommandCooldownRemaining => Mathf.Max(0f, battleCommandTimer);
@@ -231,12 +266,8 @@ namespace SpiritStone.Prototype
             Camera battleCamera = Camera.main;
             if (battleCamera == null) return;
             PixelPerfectCamera pixelPerfectCamera = battleCamera.GetComponent<PixelPerfectCamera>();
-            if (pixelPerfectCamera == null) return;
-            pixelPerfectCamera.assetsPPU = 32;
-            pixelPerfectCamera.refResolutionX = 216;
-            pixelPerfectCamera.refResolutionY = 384;
-            pixelPerfectCamera.upscaleRT = true;
-            pixelPerfectCamera.pixelSnapping = true;
+            if (pixelPerfectCamera != null) pixelPerfectCamera.enabled = false;
+            battleCamera.orthographicSize = 6.75f;
         }
 
         private void Update()
@@ -958,8 +989,10 @@ namespace SpiritStone.Prototype
             spiritPixelViews?[slot.SlotIndex]?.PlaySkillTwo();
             if (slot == arcaSlot)
             {
-                arcaCoreController?.PlayOvercharge(0.8f);
-                combatVfxSystem?.PlayArcaOvercharge(spiritVisuals[slot.SlotIndex], arcaCoreVisuals);
+                float overchargeDuration = slot.Spirit.SkillTwo.Duration;
+                arcaCoreController?.PlayOvercharge(overchargeDuration);
+                combatVfxSystem?.PlayArcaOvercharge(
+                    spiritVisuals[slot.SlotIndex], arcaCoreVisuals, overchargeDuration);
             }
             slot.BeginSkillTwo(spiritSpecialGrowthSystem.GetCooldownMultiplier(slot.SpiritId));
             PrototypeAbilityExecution execution = PrototypeSpiritAbilitySystem.Resolve(

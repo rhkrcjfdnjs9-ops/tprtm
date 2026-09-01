@@ -15,6 +15,7 @@ namespace SpiritStone.Prototype
             public Transform Transform;
             public SpriteRenderer Renderer;
             public PixelEffectView PixelView;
+            public Material DefaultMaterial;
         }
 
         private const int InitialPoolSize = 24;
@@ -30,10 +31,14 @@ namespace SpiritStone.Prototype
         private Sprite[] arcaLightningOrbProjectileFrames;
         private Sprite[] arcaLightningOrbImpactFrames;
         private Sprite[] arcaLightningLinkFrames;
-        private Sprite arcaOverchargeSmallRing;
-        private Sprite arcaOverchargeLargeRing;
+        private Sprite[] arcaOverchargeActivationFrames;
+        private Sprite[] arcaOverchargeSustainFrames;
+        private Sprite[] arcaOverchargeEndFrames;
+        private Material arcaLightningMaterial;
         private Texture2D effectTexture;
         private Coroutine cameraShakeRoutine;
+        private Coroutine hitStopRoutine;
+        private float hitStopRestoreTimeScale = 1f;
 
         public int ActiveEffectCount => active.Count;
         public int TotalEffectCount => active.Count + available.Count;
@@ -45,14 +50,43 @@ namespace SpiritStone.Prototype
             arcaLaunchFlashFrames = LoadSortedFrames("Characters/Arca/Effects/BasicAttackV3/LaunchFlashV3");
             arcaProjectileFrames = LoadSortedFrames("Characters/Arca/Effects/BasicAttackV3/ProjectileV3");
             arcaImpactFrames = LoadSortedFrames("Characters/Arca/Effects/BasicAttackV3/ImpactV3");
-            arcaLightningOrbGatherFrames = LoadSortedFrames("Characters/Arca/Effects/LightningOrbV1/Gather");
-            arcaLightningOrbProjectileFrames = LoadSortedFrames("Characters/Arca/Effects/LightningOrbV1/Projectile");
-            arcaLightningOrbImpactFrames = LoadSortedFrames("Characters/Arca/Effects/LightningOrbV1/Impact");
+            arcaLightningOrbGatherFrames = LoadSortedFrames("VFX/Lightning/LightningOrb/Gather");
+            arcaLightningOrbProjectileFrames = LoadSortedFrames("VFX/Lightning/LightningOrb/Projectile");
+            arcaLightningOrbImpactFrames = LoadSortedFrames("VFX/Lightning/LightningOrb/Impact");
             arcaLightningLinkFrames = LoadSortedFrames("Characters/Arca/Effects/LightningLinkV3");
-            arcaOverchargeSmallRing = Resources.Load<Sprite>("Characters/Arca/Effects/OverchargeV1/Arca_Overcharge_Ring_Small_v2");
-            arcaOverchargeLargeRing = Resources.Load<Sprite>("Characters/Arca/Effects/OverchargeV1/Arca_Overcharge_Ring_Large_v2");
+            arcaOverchargeActivationFrames = LoadSortedFrames("VFX/Lightning/OverchargeV3/Activation");
+            arcaOverchargeSustainFrames = LoadSortedFrames("VFX/Lightning/OverchargeV3/Sustain");
+            arcaOverchargeEndFrames = LoadSortedFrames("VFX/Lightning/OverchargeV3/End");
+            arcaLightningMaterial = Resources.Load<Material>("VFX/Materials/mat_vfx_lightning_sprite_unlit");
             sprite = effectFrames[1];
             while (TotalEffectCount < InitialPoolSize) available.Enqueue(CreateView());
+            if (!HasFrames(arcaLightningOrbGatherFrames) || !HasFrames(arcaLightningOrbProjectileFrames)
+                || !HasFrames(arcaLightningOrbImpactFrames) || arcaLightningMaterial == null)
+            {
+                Debug.LogErrorFormat("[PrototypeCombatVfxSystem] Lightning Orb VFX resources are incomplete.");
+            }
+            else
+            {
+                Debug.LogFormat(
+                    "[PrototypeCombatVfxSystem] Lightning Orb ready. Gather={0}, Projectile={1}, Impact={2}, Pool={3}",
+                    arcaLightningOrbGatherFrames.Length,
+                    arcaLightningOrbProjectileFrames.Length,
+                    arcaLightningOrbImpactFrames.Length,
+                    TotalEffectCount);
+            }
+            if (!HasFrames(arcaOverchargeActivationFrames) || !HasFrames(arcaOverchargeSustainFrames)
+                || !HasFrames(arcaOverchargeEndFrames))
+            {
+                Debug.LogErrorFormat("[PrototypeCombatVfxSystem] Overcharge rear-aura V3 resources are incomplete.");
+            }
+            else
+            {
+                Debug.LogFormat(
+                    "[PrototypeCombatVfxSystem] Overcharge rear-aura V3 ready. Activation={0}, Sustain={1}, End={2}",
+                    arcaOverchargeActivationFrames.Length,
+                    arcaOverchargeSustainFrames.Length,
+                    arcaOverchargeEndFrames.Length);
+            }
         }
 
         public IEnumerator PlayArcaBasicAttack(Transform origin, Transform target, float duration)
@@ -145,17 +179,29 @@ namespace SpiritStone.Prototype
                 yield break;
             }
 
-            EffectView gather = Acquire("Arca_LightningOrb_Gather");
+            EffectView gather = Acquire("Vfx_Arca_LightningOrb_Gather_Main");
+            ApplyArcaLightningMaterial(gather);
             gather.Renderer.sortingOrder = 11;
             gather.Renderer.color = Color.white;
             gather.Transform.rotation = Quaternion.identity;
             gather.Transform.position = SnapToPixelGrid(chargeCenter);
+            var chargeLinks = new List<EffectView>();
             for (int frame = 0; frame < arcaLightningOrbGatherFrames.Length; frame++)
             {
                 gather.PixelView.SetSprite(arcaLightningOrbGatherFrames[frame]);
-                gather.Transform.localScale = Vector3.one * 0.38f;
-                yield return new WaitForSeconds(0.055f);
+                gather.Transform.localScale = Vector3.one * 1.2f;
+                if (frame == arcaLightningOrbGatherFrames.Length - 2 && cores != null)
+                {
+                    for (int index = 0; index < cores.Count && index < 3; index++)
+                    {
+                        if (cores[index] != null)
+                            CreateChargingLink(cores[index].position, chargeCenter, 1200 + index * 31,
+                                chargeLinks, 10);
+                    }
+                }
+                yield return new WaitForSeconds(0.04f);
             }
+            foreach (EffectView chargeLink in chargeLinks) Release(chargeLink);
             Release(gather);
 
             Vector3 targetCenter = Vector3.zero;
@@ -169,11 +215,12 @@ namespace SpiritStone.Prototype
             if (targetCount == 0) yield break;
             targetCenter /= targetCount;
 
-            EffectView projectile = Acquire("Arca_LightningOrb_Projectile");
+            EffectView projectile = Acquire("Vfx_Arca_LightningOrb_Projectile_Main");
+            ApplyArcaLightningMaterial(projectile);
             projectile.Renderer.sortingOrder = 12;
             projectile.Renderer.color = Color.white;
             projectile.Transform.rotation = Quaternion.identity;
-            const float projectileDuration = 0.28f;
+            const float projectileDuration = 0.24f;
             float elapsed = 0f;
             while (elapsed < projectileDuration)
             {
@@ -182,85 +229,121 @@ namespace SpiritStone.Prototype
                 int frame = Mathf.Min(arcaLightningOrbProjectileFrames.Length - 1,
                     Mathf.FloorToInt(t * arcaLightningOrbProjectileFrames.Length));
                 projectile.PixelView.SetSprite(arcaLightningOrbProjectileFrames[frame]);
-                projectile.Transform.localScale = Vector3.one * 0.58f;
+                float compression = t > 0.88f ? Mathf.Lerp(1f, 0.58f, (t - 0.88f) / 0.12f) : 1f;
+                projectile.Transform.localScale = Vector3.one * compression;
                 projectile.Transform.position = SnapToPixelGrid(Vector3.Lerp(chargeCenter, targetCenter,
                     Mathf.SmoothStep(0f, 1f, t)));
                 yield return null;
             }
             Release(projectile);
 
-            EffectView impact = Acquire("Arca_LightningOrb_Impact");
+            EffectView impact = Acquire("Vfx_Arca_LightningOrb_Impact_Main");
+            ApplyArcaLightningMaterial(impact);
             impact.Renderer.sortingOrder = 13;
             impact.Renderer.color = Color.white;
             impact.Transform.rotation = Quaternion.identity;
             impact.Transform.position = SnapToPixelGrid(targetCenter);
+            float[] impactFrameDurations = { 0.04f, 0.025f, 0.045f, 0.05f, 0.05f, 0.04f, 0.04f, 0.03f };
             for (int frame = 0; frame < arcaLightningOrbImpactFrames.Length; frame++)
             {
                 impact.PixelView.SetSprite(arcaLightningOrbImpactFrames[frame]);
-                impact.Transform.localScale = Vector3.one * 0.72f;
-                yield return new WaitForSeconds(0.065f);
+                impact.Transform.localScale = Vector3.one * 1.65f;
+                if (frame == 1)
+                {
+                    StartHitStop(0.045f);
+                    ShakeCamera(0.09f, 0.06f);
+                    StartCoroutine(ElectricFragmentRoutine(targetCenter, 6, 0.2f));
+                }
+                float frameDuration = frame < impactFrameDurations.Length
+                    ? impactFrameDurations[frame]
+                    : 0.03f;
+                yield return new WaitForSecondsRealtime(frameDuration);
             }
             Release(impact);
-
-            ShakeCamera(0.075f, 0.14f);
         }
 
-        public void PlayArcaOvercharge(Transform origin, IReadOnlyList<Transform> cores)
+        public void PlayArcaOvercharge(Transform origin, IReadOnlyList<Transform> cores, float duration)
         {
             if (origin == null) return;
-            StartCoroutine(ArcaOverchargeRoutine(origin, cores));
+            StartCoroutine(ArcaOverchargeRoutine(origin, cores, duration));
         }
 
-        private IEnumerator ArcaOverchargeRoutine(Transform origin, IReadOnlyList<Transform> cores)
+        private IEnumerator ArcaOverchargeRoutine(Transform origin, IReadOnlyList<Transform> cores, float duration)
         {
-            if (arcaOverchargeSmallRing == null || arcaOverchargeLargeRing == null) yield break;
+            if (!HasFrames(arcaOverchargeActivationFrames) || !HasFrames(arcaOverchargeSustainFrames)
+                || !HasFrames(arcaOverchargeEndFrames)) yield break;
 
-            const float ringCenterOffsetY = -0.12f;
-            Vector3 ringScale = Vector3.one * 0.5f;
+            Vector3 rearAuraOffset = new(0f, 0.02f, 0f);
+            const float rearAuraScale = 1.5f;
+            const float activationFrameDuration = 0.055f;
+            const float sustainFrameDuration = 0.12f;
+            const float endFrameDuration = 0.07f;
+            float activationDuration = arcaOverchargeActivationFrames.Length * activationFrameDuration;
+            float endDuration = arcaOverchargeEndFrames.Length * endFrameDuration;
+            float sustainDuration = Mathf.Max(0f, duration - activationDuration - endDuration);
 
-            EffectView ring = Acquire("Arca_OverchargeRing");
-            ring.Renderer.sortingOrder = 7;
-            ring.Renderer.color = Color.white;
-            ring.Transform.rotation = Quaternion.identity;
-            ring.Transform.position = SnapToPixelGrid(origin.position + Vector3.up * ringCenterOffsetY);
-            ring.PixelView.SetSprite(arcaOverchargeSmallRing);
-            ring.Transform.localScale = ringScale;
-            yield return new WaitForSeconds(0.18f);
+            EffectView aura = Acquire("Arca_Overcharge_RearAuraV3");
+            ApplyArcaLightningMaterial(aura);
+            aura.Renderer.sortingOrder = 2;
+            aura.Renderer.color = Color.white;
+            aura.Transform.rotation = Quaternion.identity;
+            aura.Transform.localScale = Vector3.one * rearAuraScale;
 
-            if (origin == null)
+            float phaseElapsed = 0f;
+            int displayedFrame = -1;
+            while (phaseElapsed < activationDuration)
             {
-                Release(ring);
-                yield break;
-            }
-
-            ring.Transform.position = SnapToPixelGrid(origin.position + Vector3.up * ringCenterOffsetY);
-            ring.PixelView.SetSprite(arcaOverchargeLargeRing);
-            ring.Transform.localScale = ringScale;
-            var triangleEffects = new List<EffectView>();
-            if (cores != null && cores.Count >= 3)
-            {
-                for (int index = 0; index < 3; index++)
+                if (origin == null) { Release(aura); yield break; }
+                int frame = Mathf.Min(arcaOverchargeActivationFrames.Length - 1,
+                    Mathf.FloorToInt(phaseElapsed / activationFrameDuration));
+                aura.Transform.position = SnapToPixelGrid(origin.position + rearAuraOffset);
+                if (frame != displayedFrame)
                 {
-                    Transform start = cores[index];
-                    Transform end = cores[(index + 1) % 3];
-                    if (start != null && end != null)
-                        CreateLightningPath(start.position, end.position, 410 + index, triangleEffects, 8);
+                    aura.PixelView.SetSprite(arcaOverchargeActivationFrames[frame]);
+                    aura.Transform.localScale = Vector3.one * rearAuraScale;
+                    displayedFrame = frame;
                 }
+                phaseElapsed += Time.deltaTime;
+                yield return null;
             }
-            yield return new WaitForSeconds(0.32f);
 
-            for (int fadeStep = 0; fadeStep < 3; fadeStep++)
+            float elapsed = 0f;
+            displayedFrame = -1;
+            while (elapsed < sustainDuration)
             {
-                if (origin != null)
-                    ring.Transform.position = SnapToPixelGrid(origin.position +
-                        Vector3.up * (ringCenterOffsetY + fadeStep * 0.04f));
-                float alpha = 1f - (fadeStep + 1) / 3f;
-                ring.Renderer.color = new Color(1f, 1f, 1f, alpha);
-                yield return new WaitForSeconds(0.08f);
+                if (origin == null) { Release(aura); yield break; }
+                aura.Transform.position = SnapToPixelGrid(origin.position + rearAuraOffset);
+                int sustainFrame = Mathf.FloorToInt(elapsed / sustainFrameDuration)
+                    % arcaOverchargeSustainFrames.Length;
+                if (sustainFrame != displayedFrame)
+                {
+                    aura.PixelView.SetSprite(arcaOverchargeSustainFrames[sustainFrame]);
+                    aura.Transform.localScale = Vector3.one * rearAuraScale;
+                    displayedFrame = sustainFrame;
+                }
+                elapsed += Time.deltaTime;
+                yield return null;
             }
 
-            foreach (EffectView triangleEffect in triangleEffects) Release(triangleEffect);
-            Release(ring);
+            phaseElapsed = 0f;
+            displayedFrame = -1;
+            while (phaseElapsed < endDuration)
+            {
+                if (origin == null) { Release(aura); yield break; }
+                int frame = Mathf.Min(arcaOverchargeEndFrames.Length - 1,
+                    Mathf.FloorToInt(phaseElapsed / endFrameDuration));
+                aura.Transform.position = SnapToPixelGrid(origin.position + rearAuraOffset);
+                if (frame != displayedFrame)
+                {
+                    aura.PixelView.SetSprite(arcaOverchargeEndFrames[frame]);
+                    aura.Transform.localScale = Vector3.one * rearAuraScale;
+                    displayedFrame = frame;
+                }
+                phaseElapsed += Time.deltaTime;
+                yield return null;
+            }
+
+            Release(aura);
         }
 
         private IEnumerator PlayLightningLinkFrames(Vector3 start, Vector3 end, int linkIndex)
@@ -346,6 +429,66 @@ namespace SpiritStone.Prototype
             effects.Add(segment);
         }
 
+        private void CreateChargingLink(Vector3 start, Vector3 end, int seed,
+            ICollection<EffectView> effects, int sortingOrder)
+        {
+            Vector3 direction = end - start;
+            Vector3 perpendicular = direction.sqrMagnitude > 0.0001f
+                ? new Vector3(-direction.y, direction.x, 0f).normalized
+                : Vector3.up;
+            Vector3 midpoint = Vector3.Lerp(start, end, 0.52f)
+                + perpendicular * Mathf.Sin(seed * 0.37f) * 0.08f;
+            CreateLightningSegment(start, midpoint, new Color(0.72f, 0.3f, 1f), 0.045f,
+                sortingOrder, effects);
+            CreateLightningSegment(midpoint, end, new Color(0.95f, 0.76f, 1f), 0.025f,
+                sortingOrder + 1, effects);
+        }
+
+        private IEnumerator ElectricFragmentRoutine(Vector3 center, int fragmentCount, float duration)
+        {
+            var fragments = new List<EffectView>(fragmentCount);
+            var velocities = new List<Vector3>(fragmentCount);
+            for (int index = 0; index < fragmentCount; index++)
+            {
+                float angle = index * (360f / fragmentCount) + Mathf.Sin(index * 2.17f) * 13f;
+                Vector3 direction = Quaternion.Euler(0f, 0f, angle) * Vector3.right;
+                EffectView fragment = Acquire($"Vfx_Arca_LightningOrb_Decay_Fragment{index + 1}");
+                ApplyArcaLightningMaterial(fragment);
+                fragment.PixelView.SetSprite(GetFrame(0));
+                fragment.Renderer.sortingOrder = 14;
+                fragment.Renderer.color = index % 2 == 0
+                    ? new Color(0.83f, 0.42f, 1f)
+                    : new Color(0.95f, 0.76f, 1f);
+                fragment.Transform.position = SnapToPixelGrid(center);
+                fragment.Transform.localScale = Vector3.one * (index % 3 == 0 ? 0.13f : 0.09f);
+                fragments.Add(fragment);
+                velocities.Add(direction * (1.25f + index * 0.08f));
+            }
+
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                for (int index = 0; index < fragments.Count; index++)
+                {
+                    EffectView fragment = fragments[index];
+                    fragment.Transform.position = SnapToPixelGrid(center + velocities[index] * elapsed);
+                    Color color = fragment.Renderer.color;
+                    fragment.Renderer.color = new Color(color.r, color.g, color.b, 1f - t);
+                }
+                yield return null;
+            }
+
+            foreach (EffectView fragment in fragments) Release(fragment);
+        }
+
+        private void ApplyArcaLightningMaterial(EffectView view)
+        {
+            if (view != null && arcaLightningMaterial != null)
+                view.Renderer.sharedMaterial = arcaLightningMaterial;
+        }
+
         public void PlayImpact(Transform target, SpiritElement element, bool strong)
         {
             if (target == null) return;
@@ -377,6 +520,25 @@ namespace SpiritStone.Prototype
             if (camera == null) return;
             if (cameraShakeRoutine != null) StopCoroutine(cameraShakeRoutine);
             cameraShakeRoutine = StartCoroutine(ShakeRoutine(camera.transform, intensity, duration));
+        }
+
+        private void StartHitStop(float duration)
+        {
+            if (hitStopRoutine != null)
+            {
+                StopCoroutine(hitStopRoutine);
+                Time.timeScale = hitStopRestoreTimeScale;
+            }
+            hitStopRoutine = StartCoroutine(HitStopRoutine(duration));
+        }
+
+        private IEnumerator HitStopRoutine(float duration)
+        {
+            hitStopRestoreTimeScale = Mathf.Max(0.01f, Time.timeScale);
+            Time.timeScale = 0f;
+            yield return new WaitForSecondsRealtime(Mathf.Max(0.01f, duration));
+            Time.timeScale = hitStopRestoreTimeScale;
+            hitStopRoutine = null;
         }
 
         private IEnumerator ImpactRoutine(Vector3 position, SpiritElement element, bool strong)
@@ -513,6 +675,10 @@ namespace SpiritStone.Prototype
         private void Release(EffectView view)
         {
             if (view == null || !active.Remove(view)) return;
+            view.Renderer.color = Color.white;
+            view.Renderer.sharedMaterial = view.DefaultMaterial;
+            view.Transform.localScale = Vector3.one;
+            view.Transform.rotation = Quaternion.identity;
             view.GameObject.SetActive(false);
             view.Transform.SetParent(transform, false);
             available.Enqueue(view);
@@ -527,7 +693,14 @@ namespace SpiritStone.Prototype
             PixelEffectView pixelView = effect.AddComponent<PixelEffectView>();
             pixelView.Configure(sprite, 8);
             effect.SetActive(false);
-            return new EffectView { GameObject = effect, Transform = effect.transform, Renderer = renderer, PixelView = pixelView };
+            return new EffectView
+            {
+                GameObject = effect,
+                Transform = effect.transform,
+                Renderer = renderer,
+                PixelView = pixelView,
+                DefaultMaterial = renderer.sharedMaterial
+            };
         }
 
         private IEnumerator PlayFrameSequence(Vector3 position, Sprite[] frames, float frameDuration,
@@ -603,6 +776,7 @@ namespace SpiritStone.Prototype
 
         private void OnDestroy()
         {
+            if (hitStopRoutine != null) Time.timeScale = hitStopRestoreTimeScale;
             if (effectFrames != null)
                 foreach (Sprite frame in effectFrames)
                     if (frame != null) Destroy(frame);

@@ -54,6 +54,25 @@ These instructions are the project-level source of truth for Codex work in this 
 - Keep every character animation frame on a 64x64 canvas with a common foot baseline and pivot. Use Unity Animator for Idle, Walk, Attack, Hit, and Death states.
 - Keep runtime sprites separate from source, concept, and enlarged preview images; only runtime sprites belong in gameplay atlases.
 
+## VFX production source of truth
+
+- Before any VFX design, asset-generation, implementation, or revision task, read all five documents below completely.
+- Apply the VFX production-document priority in this exact order:
+  1. `../../Docs/VFX/VFX_MASTER_SPEC.md`
+  2. `../../Docs/VFX/VFX_STYLE_GUIDE.md`
+  3. `../../Docs/VFX/VFX_PALETTE.md`
+  4. `../../Docs/VFX/VFX_NAMING_RULES.md`
+  5. `../../Docs/VFX/VFX_SKILL_TEMPLATE.md`
+  6. The approved per-skill VFX Design Plan
+  7. The individual VFX asset
+- Treat these documents as the Single Source of Truth for the hybrid pixel-character/high-resolution-2D-VFX production pipeline. Do not silently alter their style, palette, naming, timing, hierarchy, or performance rules.
+- Create and approve a VFX Design Plan before producing a new skill VFX or materially rebuilding an existing one.
+- AI and ComfyUI outputs are drafts until they pass cleanup, normalization, palette, timing, alpha, and Unity import validation. Use Aseprite for pixel cleanup and sprite-sheet assembly when available.
+- The verified project uses Universal Render Pipeline 17.3.0, Shader Graph 17.3.0, `Assets/Settings/VFX/SpiritStone_URP2D.asset`, and `Assets/Settings/VFX/SpiritStone_Renderer2D.asset`.
+- Before creating Shader Graph or 2D Light assets, verify that the URP pipeline and 2D Renderer assets are still connected. Restore them with `Tools/SpiritStone/VFX/Configure URP 2D` when required.
+- Reuse and extend the existing `PrototypeCombatVfxSystem` pooling and feedback paths instead of creating a competing runtime VFX manager.
+- Every completed VFX must validate character readability, VFX silhouette, animation timing, particle density, palette compliance, performance, Sprite/Material/Prefab structure, and visual smoothness at 60 FPS.
+
 ## Naming and code style
 
 - Namespaces: `SpiritStone.<Feature>`.
