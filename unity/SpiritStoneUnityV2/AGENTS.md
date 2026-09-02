@@ -37,10 +37,13 @@ These instructions are the project-level source of truth for Codex work in this 
 - Apply the production-document priority in this exact order:
   1. `../../Docs/Unity_2D_Pixel_Art_Game_Project_Art_Rendering_Standard_v1.0.md`
   2. `../../Docs/Unity_64x64_Pixel_Character_Production_Specification.md`
-  3. `../../Docs/AI_Character_Animation_Pipeline.md`
-  4. `../../Docs/AI_Pixel_Character_Animation_Pipeline.md`
-  5. Individual character and animation settings
+  3. `../../Docs/Character_Production_Standardization_Guideline.md`
+  4. `../../Docs/AI_Character_Animation_Pipeline.md`
+  5. `../../Docs/AI_Pixel_Character_Animation_Pipeline.md`
+  6. Individual character and animation settings
 - Treat `../../Docs/Unity_2D_Pixel_Art_Game_Project_Art_Rendering_Standard_v1.0.md` as the project-wide art and rendering source of truth.
+- Treat `../../Docs/Character_Production_Standardization_Guideline.md` as the mandatory workflow for every new pixel character. Arca is the Reference Character and production template; reuse its confirmed canvas, pixel resolution, PPU, sprite height, placement, foot baseline, center axis, art style, outline, palette/shading rules, alpha rules, file naming, folder structure, animation workflow, Unity import settings, Sprite settings, and Animator structure instead of redesigning them per character.
+- For a new character, change only its approved character-specific identity and gameplay content. If the Arca template cannot resolve a production issue, do not silently change the common standard; verify whether the issue affects Arca and update the shared standard only when the change is approved as a reusable project-wide rule.
 - Treat `../../Docs/AI_Character_Animation_Pipeline.md` as the character-identity, Blender rigging, animation-render, ComfyUI conversion, and Unity-delivery pipeline source of truth.
 - Treat `../../Docs/AI_Pixel_Character_Animation_Pipeline.md` as the AI motion-generation and sprite-sheet pipeline source of truth. AI output is motion reference material only until it is normalized to the 64x64 master grid and passes the document's QC gates.
 - Maintain one immutable Character Master and one reusable 3D character/rig per character. Do not regenerate the character with ImageGen for each animation; ImageGen motion variants are reference drafts only and cannot become production assets directly.
