@@ -8,10 +8,10 @@ namespace SpiritStone.Editor
     public static class ArcaFloatMoveSetup
     {
         private const string AnimationRoot = "Assets/Characters/Arca/Pixel64/Resources/Characters/Arca/Animations";
-        private const string FrameRoot = "Assets/Characters/Arca/PixelLab/WalkSouthEastMasterLockedV1";
+        private const string FrameRoot = "Assets/Characters/Arca/PixelLab/WalkSouthEastPaletteLockedV2/Normalized64";
         private const string ClipPath = AnimationRoot + "/Arca_Walk.anim";
         private const string ControllerPath = AnimationRoot + "/Arca_Idle.controller";
-        private const int FrameCount = 6;
+        private const int FrameCount = 7;
         private const float FrameRate = 9f;
 
         [MenuItem("Tools/2D Character/Arca Pixel64/Rebuild Walk From PixelLab South-East Master")]
@@ -22,7 +22,7 @@ namespace SpiritStone.Editor
             var sprites = new Sprite[FrameCount];
             for (var i = 0; i < sprites.Length; i++)
             {
-                var path = $"{FrameRoot}/Arca_Walk_SouthEast_MasterLocked_V1_{i:00}.png";
+                var path = $"{FrameRoot}/Arca_Walk_SouthEast_PaletteLocked_V2_64_{i:00}.png";
                 var importer = AssetImporter.GetAtPath(path) as TextureImporter;
                 if (importer != null)
                 {
@@ -80,7 +80,7 @@ namespace SpiritStone.Editor
             EditorUtility.SetDirty(controller);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.LogFormat("[ArcaFloatMoveSetup] Applied {0} PixelLab South-East master-locked frames as ground Walk at {1} FPS.", FrameCount, FrameRate);
+            Debug.LogFormat("[ArcaFloatMoveSetup] Applied {0} normalized PixelLab South-East frames as ground Walk at {1} FPS.", FrameCount, FrameRate);
         }
     }
 }

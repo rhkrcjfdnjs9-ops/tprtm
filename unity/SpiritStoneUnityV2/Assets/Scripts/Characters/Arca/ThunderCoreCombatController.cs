@@ -31,6 +31,13 @@ namespace SpiritStone.Characters.Arca
             new(0.58f, 0.42f, 0f)
         };
 
+        private static readonly Vector3[] UltimateTriangleOffsets =
+        {
+            new(-0.42f, 1.34f, 0f),
+            new(0f, 1.88f, 0f),
+            new(0.42f, 1.34f, 0f)
+        };
+
         [SerializeField, Min(1f)] private float positionResponse = 16f;
         [SerializeField, Min(0f)] private float movementTrail = 0.12f;
 
@@ -119,7 +126,7 @@ namespace SpiritStone.Characters.Arca
                 CoreAction.BasicAttack => IdleOffsets[index] + (index == 1 ? Vector3.right * 0.5f * pulse : Vector3.right * 0.12f * pulse),
                 CoreAction.SkillOne => Vector3.Lerp(IdleOffsets[index], SkillOneTriangleOffsets[index], pulse),
                 CoreAction.Overcharge => IdleOffsets[index] * (1f + 0.18f * pulse),
-                CoreAction.Ultimate => Vector3.Lerp(IdleOffsets[index], new Vector3(0.62f, 0.35f + index * 0.4f, 0f), pulse),
+                CoreAction.Ultimate => Vector3.Lerp(IdleOffsets[index], UltimateTriangleOffsets[index], pulse),
                 CoreAction.Hit => IdleOffsets[index] + Vector3.left * 0.14f * pulse,
                 CoreAction.Death => IdleOffsets[index] + Vector3.down * 0.22f,
                 _ => IdleOffsets[index]

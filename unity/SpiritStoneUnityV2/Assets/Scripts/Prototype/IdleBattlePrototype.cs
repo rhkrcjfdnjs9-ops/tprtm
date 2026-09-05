@@ -61,6 +61,9 @@ namespace SpiritStone.Prototype
         private PixelCharacterView[] spiritPixelViews;
         private Sprite[] spiritPlaceholderSprites;
         private Sprite arcaPixelSprite;
+        private Sprite honokaPixelSprite;
+        private RuntimeAnimatorController arcaAnimatorController;
+        private RuntimeAnimatorController honokaAnimatorController;
         private SpriteRenderer arcaRenderer;
         private SpriteRenderer enemyRenderer;
         private SpriteRenderer[] enemyRenderers;
@@ -187,6 +190,26 @@ namespace SpiritStone.Prototype
             arcaCoreController?.PlayOvercharge(duration);
             spiritPixelViews?[arcaSlot.SlotIndex]?.PlaySkillTwo();
             combatVfxSystem.PlayArcaOvercharge(arca, arcaCoreVisuals, duration);
+        }
+
+        public void PreviewArcaUltimateVfx()
+        {
+            if (!Application.isPlaying || combatVfxSystem == null || arca == null || arcaSlot == null)
+            {
+                Debug.LogWarningFormat("[IdleBattlePrototype] Arca Ultimate preview requires an initialized Play Mode battle.");
+                return;
+            }
+
+            List<Transform> targets = GetAliveEnemyVisuals(99);
+            if (targets.Count == 0)
+            {
+                Debug.LogWarningFormat("[IdleBattlePrototype] Arca Ultimate preview has no alive enemy target.");
+                return;
+            }
+
+            arcaCoreController?.PlayUltimate(1.15f);
+            spiritPixelViews?[arcaSlot.SlotIndex]?.PlayUltimate();
+            StartCoroutine(combatVfxSystem.PlayArcaUltimate(arcaCoreVisuals, arca, targets));
         }
 
         public float OverchargeCooldownRemaining => arcaSlot?.SkillTwoCooldownRemaining ?? 0f;
@@ -467,7 +490,9 @@ namespace SpiritStone.Prototype
             spiritPixelViews = new[] { arcaPixelView, ignisPixelView, elysiaPixelView };
             spiritPlaceholderSprites = new[] { arcaRenderer.sprite, ignisRenderer.sprite, elysiaRenderer.sprite };
             arcaPixelSprite = Resources.Load<Sprite>("Characters/Arca/character_arca_idle_01_v3");
-            arcaPixelView.SetAnimatorController(Resources.Load<RuntimeAnimatorController>("Characters/Arca/Animations/Arca_Idle"));
+            honokaPixelSprite = Resources.Load<Sprite>("Characters/Honoka/Idle/Honoka_Idle_00");
+            arcaAnimatorController = Resources.Load<RuntimeAnimatorController>("Characters/Arca/Animations/Arca_Idle");
+            honokaAnimatorController = Resources.Load<RuntimeAnimatorController>("Characters/Honoka/Animations/Honoka");
             spiritVisuals = new[] { arca, ignisRenderer.transform, elysiaRenderer.transform };
             arcaCoreRenderers = new[] { coreARenderer, coreBRenderer, coreCRenderer };
             arcaCoreVisuals = new[] { coreARenderer.transform, coreBRenderer.transform, coreCRenderer.transform };
@@ -610,7 +635,10 @@ namespace SpiritStone.Prototype
             UpdateEnemyTargetVisuals(isBoss);
             protagonist.position = GetProtagonistHomePosition();
             for (int index = 0; index < spiritVisuals.Length; index++)
+            {
                 spiritVisuals[index].position = GetSpiritHomePosition(index);
+                spiritVisuals[index].localScale = Vector3.one;
+            }
             PositionArcaCores();
             arcaCoreController?.ReturnToIdle();
             ResetAlivePartyAnimations();
@@ -908,14 +936,28 @@ namespace SpiritStone.Prototype
         {
             if (battleState != BattleState.Fighting) yield break;
             slot.SetActing(true);
-            spiritPixelViews?[slot.SlotIndex]?.PlayAttack();
             bool isArca = slot.SpiritId.Equals("arca", StringComparison.OrdinalIgnoreCase);
             if (isArca)
+            {
+                spiritPixelViews?[slot.SlotIndex]?.PlayAttack();
                 yield return ChargeArcaCores(0.18f);
+            }
             else if (slot.Spirit.CombatRole == SpiritCombatRole.MeleeAttack)
-                yield return MeleeStrikeRoutine(visual, 0.85f);
+            {
+                yield return MeleeStrikeRoutine(visual, 0.85f, spiritPixelViews?[slot.SlotIndex], () =>
+                {
+                    if (battleState != BattleState.Fighting || !IsSpiritAlive(slot)) return;
+                    PrototypeAbilityExecution meleeExecution = PrototypeSpiritAbilitySystem.Resolve(
+                        slot.Spirit.BasicAttack, SpiritAbilitySlot.BasicAttack, GetSpiritDamage(slot));
+                    ApplySpiritAbilityExecution(slot, meleeExecution);
+                    slot.GainUltimateEnergy(meleeExecution.EnergyGain);
+                });
+            }
             else
+            {
+                spiritPixelViews?[slot.SlotIndex]?.PlayAttack();
                 yield return PulseRoutine(visual, Vector3.right * 0.18f);
+            }
             if (battleState == BattleState.Fighting && IsSpiritAlive(slot))
             {
                 if (slot.Spirit.CombatRole != SpiritCombatRole.MeleeAttack)
@@ -928,7 +970,8 @@ namespace SpiritStone.Prototype
                     else
                         yield return MoveProjectile(projectileOrigin, GetElementColor(slot.Spirit.Element), new Vector3(0.5f, 0.09f, 1f), projectileDuration);
                 }
-                if (battleState == BattleState.Fighting && IsSpiritAlive(slot))
+                if (slot.Spirit.CombatRole != SpiritCombatRole.MeleeAttack
+                    && battleState == BattleState.Fighting && IsSpiritAlive(slot))
                 {
                     PrototypeAbilityExecution execution = PrototypeSpiritAbilitySystem.Resolve(
                         slot.Spirit.BasicAttack, SpiritAbilitySlot.BasicAttack, GetSpiritDamage(slot));
@@ -1011,27 +1054,31 @@ namespace SpiritStone.Prototype
             battleMessage = $"{slot.DisplayName} 궁극기 · {slot.Spirit.Ultimate.DisplayName}!";
 
             spiritPixelViews?[slot.SlotIndex]?.PlayUltimate();
-            if (slot.SpiritId.Equals("arca", StringComparison.OrdinalIgnoreCase))
+            bool isArca = slot.SpiritId.Equals("arca", StringComparison.OrdinalIgnoreCase);
+            if (isArca)
             {
                 arcaCoreController?.PlayUltimate(1.15f);
-                yield return new WaitForSeconds(0.5f);
+                yield return combatVfxSystem.PlayArcaUltimate(
+                    arcaCoreVisuals, visual, GetAliveEnemyVisuals(99));
             }
-
-            GameObject lightning = new($"{slot.SpiritId}_Ultimate");
-            lightning.transform.SetParent(transform, false);
-            bool isFire = slot.Spirit.Element == SpiritElement.Fire;
-            bool isTeamSupport = slot.Spirit.Ultimate.Effect == SpiritAbilityEffect.DamageReduction
-                || slot.Spirit.Ultimate.Effect == SpiritAbilityEffect.TeamAttackPowerBuff;
-            lightning.transform.position = isTeamSupport ? protagonist.position + Vector3.up * 0.2f : isFire ? enemy.position : enemy.position + new Vector3(0f, 2.4f, 0f);
-            lightning.transform.localScale = isTeamSupport ? new Vector3(4.2f, 2.8f, 1f) : isFire ? new Vector3(2.2f, 2.2f, 1f) : new Vector3(0.28f, 4.2f, 1f);
-            SpriteRenderer renderer = lightning.AddComponent<SpriteRenderer>();
-            renderer.sprite = squareSprite;
-            Color ultimateColor = Color.Lerp(GetElementColor(slot.Spirit.Element), Color.white, 0.35f);
-            if (isTeamSupport) ultimateColor.a = 0.28f;
-            renderer.color = ultimateColor;
-            renderer.sortingOrder = 7;
-            yield return new WaitForSeconds(0.16f);
-            Destroy(lightning);
+            else
+            {
+                GameObject lightning = new($"{slot.SpiritId}_Ultimate");
+                lightning.transform.SetParent(transform, false);
+                bool isFire = slot.Spirit.Element == SpiritElement.Fire;
+                bool isTeamSupport = slot.Spirit.Ultimate.Effect == SpiritAbilityEffect.DamageReduction
+                    || slot.Spirit.Ultimate.Effect == SpiritAbilityEffect.TeamAttackPowerBuff;
+                lightning.transform.position = isTeamSupport ? protagonist.position + Vector3.up * 0.2f : isFire ? enemy.position : enemy.position + new Vector3(0f, 2.4f, 0f);
+                lightning.transform.localScale = isTeamSupport ? new Vector3(4.2f, 2.8f, 1f) : isFire ? new Vector3(2.2f, 2.2f, 1f) : new Vector3(0.28f, 4.2f, 1f);
+                SpriteRenderer renderer = lightning.AddComponent<SpriteRenderer>();
+                renderer.sprite = squareSprite;
+                Color ultimateColor = Color.Lerp(GetElementColor(slot.Spirit.Element), Color.white, 0.35f);
+                if (isTeamSupport) ultimateColor.a = 0.28f;
+                renderer.color = ultimateColor;
+                renderer.sortingOrder = 7;
+                yield return new WaitForSeconds(0.16f);
+                Destroy(lightning);
+            }
 
             if (battleState == BattleState.Fighting)
             {
@@ -1160,12 +1207,16 @@ namespace SpiritStone.Prototype
                 yield return combatVfxSystem.PlayProjectile(origin, enemy, element, scale, duration);
         }
 
-        private IEnumerator MeleeStrikeRoutine(Transform actor, float stoppingDistance)
+        private IEnumerator MeleeStrikeRoutine(
+            Transform actor,
+            float stoppingDistance,
+            PixelCharacterView attackView = null,
+            Action onContact = null)
         {
             Vector3 origin = actor.position;
             Vector3 destination = enemy.position + Vector3.left * stoppingDistance;
-            const float approachDuration = 0.14f;
-            const float returnDuration = 0.16f;
+            float approachDuration = attackView != null ? 0.28f : 0.14f;
+            float returnDuration = attackView != null ? 0.24f : 0.16f;
             float elapsed = 0f;
             while (elapsed < approachDuration && battleState == BattleState.Fighting)
             {
@@ -1173,8 +1224,17 @@ namespace SpiritStone.Prototype
                 actor.position = Vector3.Lerp(origin, destination, Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / approachDuration)));
                 yield return null;
             }
+            actor.position = destination;
+            if (attackView != null)
+            {
+                yield return null;
+                attackView.PlayAttack();
+                yield return new WaitForSeconds(0.5f);
+            }
             Pulse(enemy, Vector3.left * 0.14f);
             combatVfxSystem?.PlayImpact(enemy, currentEnemy.Element, false);
+            onContact?.Invoke();
+            if (attackView != null) yield return new WaitForSeconds(0.35f);
             elapsed = 0f;
             Vector3 strikePosition = actor.position;
             while (elapsed < returnDuration)
@@ -1217,9 +1277,9 @@ namespace SpiritStone.Prototype
         {
             return slotIndex switch
             {
-                0 => new Vector3(-1.75f, -1.45f, 0f),
-                1 => new Vector3(-0.85f, -1.45f, 0f),
-                2 => new Vector3(0.05f, -1.45f, 0f),
+                0 => new Vector3(-1.9f, -1.45f, 0f),
+                1 => new Vector3(-0.65f, -1.45f, 0f),
+                2 => new Vector3(0.6f, -1.45f, 0f),
                 _ => throw new ArgumentOutOfRangeException(nameof(slotIndex))
             };
         }
@@ -1616,14 +1676,24 @@ namespace SpiritStone.Prototype
             for (int index = 0; index < spiritSlots.Length; index++)
             {
                 spiritVisuals[index].position = GetSpiritHomePosition(index);
+                spiritVisuals[index].localScale = Vector3.one;
+                spiritRenderers[index].sortingOrder = 3 + index;
                 spiritRenderers[index].enabled = spiritSlots[index].IsAssigned;
                 if (spiritSlots[index].IsAssigned)
                 {
-                    Sprite displaySprite = spiritSlots[index].SpiritId.Equals("arca", StringComparison.OrdinalIgnoreCase)
-                        && arcaPixelSprite != null
-                            ? arcaPixelSprite
+                    bool isArca = spiritSlots[index].SpiritId.Equals("arca", StringComparison.OrdinalIgnoreCase);
+                    bool isHonoka = spiritSlots[index].SpiritId.Equals("ignis", StringComparison.OrdinalIgnoreCase);
+                    Sprite displaySprite = isArca && arcaPixelSprite != null
+                        ? arcaPixelSprite
+                        : isHonoka && honokaPixelSprite != null
+                            ? honokaPixelSprite
                             : spiritPlaceholderSprites[index];
                     spiritPixelViews[index].SetSprite(displaySprite);
+                    spiritPixelViews[index].SetAnimatorController(isArca
+                        ? arcaAnimatorController
+                        : isHonoka
+                            ? honokaAnimatorController
+                            : null);
                 }
             }
             InitializePartyMembers();

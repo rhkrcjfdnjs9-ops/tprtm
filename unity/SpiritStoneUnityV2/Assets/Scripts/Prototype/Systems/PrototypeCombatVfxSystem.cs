@@ -34,14 +34,29 @@ namespace SpiritStone.Prototype
         private Sprite[] arcaOverchargeActivationFrames;
         private Sprite[] arcaOverchargeSustainFrames;
         private Sprite[] arcaOverchargeEndFrames;
+        private Sprite[] arcaUltimateGatherFrames;
+        private Sprite[] arcaUltimateImpactFrames;
         private Material arcaLightningMaterial;
         private Texture2D effectTexture;
         private Coroutine cameraShakeRoutine;
         private Coroutine hitStopRoutine;
         private float hitStopRestoreTimeScale = 1f;
+        private float hitStopEndsAtRealtime = -1f;
+        private bool isHitStopActive;
 
         public int ActiveEffectCount => active.Count;
         public int TotalEffectCount => active.Count + available.Count;
+
+        private void OnEnable()
+        {
+            isHitStopActive = false;
+            hitStopEndsAtRealtime = -1f;
+            hitStopRoutine = null;
+
+            // The current project only uses 0 (paused/hit stop) and 1 (normal play).
+            // Normalize stale values such as 0.01 left by an interrupted older hit stop.
+            Time.timeScale = 1f;
+        }
 
         public void Initialize(Sprite effectSprite)
         {
@@ -57,6 +72,8 @@ namespace SpiritStone.Prototype
             arcaOverchargeActivationFrames = LoadSortedFrames("VFX/Lightning/OverchargeV3/Activation");
             arcaOverchargeSustainFrames = LoadSortedFrames("VFX/Lightning/OverchargeV3/Sustain");
             arcaOverchargeEndFrames = LoadSortedFrames("VFX/Lightning/OverchargeV3/End");
+            arcaUltimateGatherFrames = LoadSortedFrames("VFX/Lightning/ArcaUltimate/Gather");
+            arcaUltimateImpactFrames = LoadSortedFrames("VFX/Lightning/ArcaUltimate/Impact");
             arcaLightningMaterial = Resources.Load<Material>("VFX/Materials/mat_vfx_lightning_sprite_unlit");
             sprite = effectFrames[1];
             while (TotalEffectCount < InitialPoolSize) available.Enqueue(CreateView());
@@ -87,6 +104,109 @@ namespace SpiritStone.Prototype
                     arcaOverchargeSustainFrames.Length,
                     arcaOverchargeEndFrames.Length);
             }
+            if (!HasFrames(arcaUltimateGatherFrames) || !HasFrames(arcaUltimateImpactFrames))
+            {
+                Debug.LogErrorFormat("[PrototypeCombatVfxSystem] Arca Ultimate VFX resources are incomplete.");
+            }
+            else
+            {
+                Debug.LogFormat(
+                    "[PrototypeCombatVfxSystem] Arca Ultimate ready. Gather={0}, Impact={1}",
+                    arcaUltimateGatherFrames.Length, arcaUltimateImpactFrames.Length);
+            }
+        }
+
+        public IEnumerator PlayArcaUltimate(IReadOnlyList<Transform> cores, Transform origin,
+            IReadOnlyList<Transform> targets)
+        {
+            if (origin == null || targets == null || targets.Count == 0) yield break;
+            if (!HasFrames(arcaUltimateGatherFrames) || !HasFrames(arcaUltimateImpactFrames))
+            {
+                yield return PlayProjectile(origin, targets[0], SpiritElement.Lightning,
+                    new Vector3(0.85f, 0.16f, 1f), 0.25f);
+                yield break;
+            }
+
+            Vector3 gatherCenter = GetAveragePosition(cores,
+                origin.position + new Vector3(0f, 1.52f, 0f));
+            yield return PlayUltimateGatherPhase(cores, origin, arcaUltimateGatherFrames, 0.055f,
+                "Vfx_Arca_Ultimate_Gather", 11, 0.24f);
+
+            Vector3 targetCenter = GetAveragePosition(targets, targets[0].position) + Vector3.up * 0.15f;
+            EffectView impact = Acquire("Vfx_Arca_Ultimate_Impact");
+            ApplyArcaLightningMaterial(impact);
+            impact.Renderer.sortingOrder = 13;
+            impact.Renderer.color = Color.white;
+            impact.Transform.rotation = Quaternion.identity;
+            impact.Transform.position = SnapToPixelGrid(targetCenter + Vector3.up * 1.63f);
+            Vector3 impactScale = new(0.42f, 0.7f, 1f);
+            impact.Transform.localScale = impactScale;
+            for (int frame = 0; frame < arcaUltimateImpactFrames.Length; frame++)
+            {
+                impact.PixelView.SetSprite(arcaUltimateImpactFrames[frame]);
+                impact.Transform.localScale = impactScale;
+                if (frame == 2)
+                {
+                    StartHitStop(0.06f);
+                    ShakeCamera(0.13f, 0.14f);
+                }
+                yield return new WaitForSecondsRealtime(frame == 2 ? 0.07f : 0.045f);
+            }
+            Release(impact);
+        }
+
+        private IEnumerator PlayUltimateGatherPhase(IReadOnlyList<Transform> cores, Transform origin,
+            Sprite[] frames, float frameDuration, string effectName, int sortingOrder, float scale)
+        {
+            EffectView view = Acquire(effectName);
+            ApplyArcaLightningMaterial(view);
+            view.Renderer.sortingOrder = sortingOrder;
+            view.Renderer.color = Color.white;
+            view.Transform.rotation = Quaternion.identity;
+            view.Transform.localScale = Vector3.one * scale;
+            for (int frame = 0; frame < frames.Length; frame++)
+            {
+                if (origin == null) break;
+                Vector3 fallback = origin.position + new Vector3(0f, 1.52f, 0f);
+                view.Transform.position = SnapToPixelGrid(GetAveragePosition(cores, fallback));
+                view.PixelView.SetSprite(frames[frame]);
+                view.Transform.localScale = Vector3.one * scale;
+                yield return new WaitForSeconds(frameDuration);
+            }
+            Release(view);
+        }
+
+        private IEnumerator PlayUltimatePhase(Vector3 position, Sprite[] frames, float frameDuration,
+            string effectName, int sortingOrder, float scale)
+        {
+            EffectView view = Acquire(effectName);
+            ApplyArcaLightningMaterial(view);
+            view.Renderer.sortingOrder = sortingOrder;
+            view.Renderer.color = Color.white;
+            view.Transform.rotation = Quaternion.identity;
+            view.Transform.position = SnapToPixelGrid(position);
+            view.Transform.localScale = Vector3.one * scale;
+            for (int frame = 0; frame < frames.Length; frame++)
+            {
+                view.PixelView.SetSprite(frames[frame]);
+                view.Transform.localScale = Vector3.one * scale;
+                yield return new WaitForSeconds(frameDuration);
+            }
+            Release(view);
+        }
+
+        private static Vector3 GetAveragePosition(IReadOnlyList<Transform> transforms, Vector3 fallback)
+        {
+            if (transforms == null || transforms.Count == 0) return fallback;
+            Vector3 total = Vector3.zero;
+            int count = 0;
+            foreach (Transform item in transforms)
+            {
+                if (item == null) continue;
+                total += item.position;
+                count++;
+            }
+            return count > 0 ? total / count : fallback;
         }
 
         public IEnumerator PlayArcaBasicAttack(Transform origin, Transform target, float duration)
@@ -522,22 +642,46 @@ namespace SpiritStone.Prototype
             cameraShakeRoutine = StartCoroutine(ShakeRoutine(camera.transform, intensity, duration));
         }
 
-        private void StartHitStop(float duration)
+        private void Update()
         {
-            if (hitStopRoutine != null)
-            {
-                StopCoroutine(hitStopRoutine);
-                Time.timeScale = hitStopRestoreTimeScale;
-            }
-            hitStopRoutine = StartCoroutine(HitStopRoutine(duration));
+            if (isHitStopActive && Time.realtimeSinceStartup >= hitStopEndsAtRealtime)
+                RestoreTimeScaleAfterHitStop();
         }
 
-        private IEnumerator HitStopRoutine(float duration)
+        private void StartHitStop(float duration)
         {
-            hitStopRestoreTimeScale = Mathf.Max(0.01f, Time.timeScale);
+            float safeDuration = Mathf.Max(0.01f, duration);
+            float requestedEndTime = Time.realtimeSinceStartup + safeDuration;
+
+            if (isHitStopActive)
+            {
+                hitStopEndsAtRealtime = Mathf.Max(hitStopEndsAtRealtime, requestedEndTime);
+                return;
+            }
+
+            hitStopRestoreTimeScale = Time.timeScale >= 0.5f ? Time.timeScale : 1f;
+            hitStopEndsAtRealtime = requestedEndTime;
+            isHitStopActive = true;
             Time.timeScale = 0f;
-            yield return new WaitForSecondsRealtime(Mathf.Max(0.01f, duration));
-            Time.timeScale = hitStopRestoreTimeScale;
+            hitStopRoutine = StartCoroutine(HitStopRoutine());
+        }
+
+        private IEnumerator HitStopRoutine()
+        {
+            while (isHitStopActive && Time.realtimeSinceStartup < hitStopEndsAtRealtime)
+                yield return null;
+
+            if (isHitStopActive)
+                RestoreTimeScaleAfterHitStop();
+        }
+
+        private void RestoreTimeScaleAfterHitStop()
+        {
+            if (!isHitStopActive) return;
+
+            isHitStopActive = false;
+            Time.timeScale = Mathf.Max(0.01f, hitStopRestoreTimeScale);
+            hitStopEndsAtRealtime = -1f;
             hitStopRoutine = null;
         }
 
@@ -774,9 +918,14 @@ namespace SpiritStone.Prototype
 
         private static float SnapRotation(float angle) => Mathf.Round(angle / 45f) * 45f;
 
+        private void OnDisable()
+        {
+            RestoreTimeScaleAfterHitStop();
+        }
+
         private void OnDestroy()
         {
-            if (hitStopRoutine != null) Time.timeScale = hitStopRestoreTimeScale;
+            RestoreTimeScaleAfterHitStop();
             if (effectFrames != null)
                 foreach (Sprite frame in effectFrames)
                     if (frame != null) Destroy(frame);
